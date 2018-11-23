@@ -1,12 +1,12 @@
 from cosmology import *
-from dmbs import *
+from bdms import *
 from radcool import *
 from chemi import *
 import time
 
 x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
 			 [5e-4, 1.0, 1e-19, 0.0] + \
-			 [1.0, 2.5e-5, 2.5e-11] + \
+			 [1.0, 5e-4, 2.5e-11] + \
 			 [1.0, 0, 0, 0, 0]
 
 def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_default, z00 = 1000, Om = 0.315, Ob = 0.048, h = 0.6774, vmin = 1e-10, T0 = 2.726):
@@ -30,14 +30,15 @@ def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_defaul
 def M_T(T, z, delta, Om = 0.315):
 	return (T/(delta*Om/(200*0.315))**(1/3)*10/(1+z)/190356.40337133306)**(3/2)*1e10
 
-def coolt(Tb_old, Tdm_old, nb, nold, v_old, rhob_old, rhodm_old, z, mode, Mdm, sigma, gamma, xh, Om, Ob, h, X, J_21, T0):
+def coolt(Tb_old, Tdm_old, nb, nold, v_old, rhob_old, rhodm_old, z, mode, Mdm, sigma, gamma, Om, Ob, h, X, J_21, T0):
+	xh = 4*X/(1+3*X)
 	dTs_dt = [0]*3
 	if mode!=0:
-		dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, z, rhob_old, rhodm_old, Mdm, sigma, gamma, xh, Om, Ob, h)
+		dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, z, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h)
 	dTb_dt = cool(Tb_old, nb, nold, J_21, z, gamma, X, T0) + dTs_dt[1]
 	return -Tb_old/dTb_dt
 	
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = 1e3*YR, J_21=0.0, Tmin = 1e-10, vmin = 1e-10):
+def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 0.1, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = 1e3*YR, J_21=0.0, Tmin = 1e-10, vmin = 1e-10):
 	start = time.time()
 	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h)
 	xh = 4.0*X/(1.0+3.0*X)
@@ -69,7 +70,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		tag2 = 1
 	Tb_V = TV
 	pV = []
-	para = [Mdm, sigma, gamma, xh, Om, Ob, h, X, J_21, T0]
+	para = [Mdm, sigma, gamma, Om, Ob, h, X, J_21, T0]
 	tcool = 0.0
 	tffV = 1/H(1/(1+zvir), Om, h) #tff(zvir, dmax)
 	#yy = np.zeros(Ns, dtype='float')
@@ -89,8 +90,8 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			dTs_dt_old = [0]*3
 			dTs_dt = [0]*3
 			if mode!=0:
-				dTs_dt_old = bdmscool(Tdm_old, Tb_old, v_old, z0, rhob_old, rhodm_old, Mdm, sigma, gamma, xh, Om, Ob, h)
-			dTb_dt_old = cool(Tb_old, nb, nold, J_21, z0, gamma, X, T0) + dTs_dt_old[1] + dlnrho_dt_old*(gamma-1)*Tb_old
+				dTs_dt_old = bdmscool(Tdm_old, Tb_old, v_old, z0, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h, T0 = T0)
+			dTb_dt_old = cool(Tb_old, nb, nold*nb, J_21, z0, gamma, X, T0) + dTs_dt_old[1] + dlnrho_dt_old*(gamma-1)*Tb_old
 			dTdm_dt_old = dTs_dt_old[0] + dlnrho_dt_old*(gamma-1)*Tdm_old
 			dv_dt_old = dTs_dt_old[2] + dlnrho_dt_old*(gamma-1)*v_old
 		else:
@@ -110,18 +111,18 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			Tb_V = Tb_old
 			Tb_old = max(TV, Tb_old)
 			Tdm_old = max(TV, Tdm_old)
-			pV = [Tb_old, Tdm_old, nb, nold, v_old, rhob_old, rhodm_old, z]
+			pV = [Tb_old, Tdm_old, nb, nold*nb, v_old, rhob_old, rhodm_old, z]
 			tcool = coolt(*pV, mode, *para)
 			tag1 = 1
 		if count==0:
 			Cr0, Ds0 = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
-			abund0 = chemistry1(Tb_old, nold, dt_T, epsH, J_21, Ns, xh, xhe, xd, xli, Cr0, Ds0)
+			abund0 = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0)
 			Cr0, Ds0 = abund0[5], abund0[6]
 		else:
 			Cr0, Ds0 = abund[5], abund[6]
 		nold = yy * refa
-		abund = chemistry1(Tb_old, nold, dt_T, epsH, J_21, Ns, xh, xhe, xd, xli, Cr0, Ds0)
-		nold = abund[0]
+		abund = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0)
+		nold = abund[0]/nb
 		for x in range(Ns):
 			if refa[x]!=0:
 				yy[x] = nold[x]/refa[x]
@@ -134,8 +135,8 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		z = z_t(t_cum)
 		dlnrho_dt = Dlnrho(t_cum, t_cum + abund[1]/2.0, zvir, dmax)
 		if mode!=0:
-			dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, z, rhob_old, rhodm_old, Mdm, sigma, gamma, xh, Om, Ob, h)
-		dTb_dt = cool(Tb_old, nb, nold, J_21, z, gamma, X, T0) + dTs_dt[1]
+			dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, z, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h, T0 = T0)
+		dTb_dt = cool(Tb_old, nb, nold*nb, J_21, z, gamma, X, T0) + dTs_dt[1]
 		if tag0==0:
 			dTb_dt += dlnrho_dt*(gamma-1)*Tb_old
 		dTdm_dt = dTs_dt[0] + dlnrho_dt*(gamma-1)*Tdm_old
@@ -236,7 +237,7 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e4, m2 = 1e8, nmb = 100, mode = 0, z0 = 300, v
 if __name__=="__main__":
 	tag = 0
 	m = 1e6
-	zvir = 100
+	zvir = 70
 	v0 = 30
 	rep0 = 'example/'
 	dmax = 200 #1e3
@@ -309,10 +310,28 @@ if __name__=="__main__":
 	#plt.ylim(1e-5, 1e-3)
 	plt.tight_layout()
 	plt.savefig(rep0+'Example_xe_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'.pdf')
+
+	plt.figure()
+	plt.plot(d0['t'], d0['X'][0], label='0')
+	plt.plot(d0['t'], d0['X'][3], label='3')
+	plt.plot(d0['t'], d0['X'][5], label='5')
+	plt.plot(d0['t'], d0['X'][9], label='9')
+	plt.plot(d0['t'], d0['X'][10], label='10')
+	plt.plot(d0['t'], d0['X'][11], label='11')
+	#plt.plot(d1['t'], d1['X'][5], '--', label='BDMS')
+	plt.xlabel(r'$t\ [\mathrm{yr}]$')
+	plt.ylabel(r'$x$')
+	plt.legend()
+	plt.xscale('log')
+	plt.yscale('log')
+	#plt.ylim(1e-5, 1e-3)
+	plt.tight_layout()
+	plt.savefig(rep0+'Example_X_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'.pdf')
 	#plt.show()
 
 	"""
 	#mode = 0
+	Mdm, sigma = 0.3, 1e-19
 	lm_, lz_ = Mth_z(10, 100, 19, mode = 1)
 	lm, lz = Mth_z(10, 100, 19, mode = 0)
 	plt.figure()
