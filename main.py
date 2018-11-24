@@ -2,6 +2,7 @@ from cosmology import *
 from bdms import *
 from radcool import *
 from chemi import *
+import multiprocessing as mp
 import time
 
 x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
@@ -30,7 +31,7 @@ def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_defaul
 def M_T(T, z, delta, Om = 0.315):
 	return (T/(delta*Om/(200*0.315))**(1/3)*10/(1+z)/190356.40337133306)**(3/2)*1e10
 
-def coolt(Tb_old, Tdm_old, nb, nold, v_old, rhob_old, rhodm_old, z, mode, Mdm, sigma, gamma, Om, Ob, h, X, J_21, T0):
+def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, sigma, gamma, Om, Ob = 0.048, h = 0.6774, X = 0.76, J_21 = 0, T0 = 2.726):
 	xh = 4*X/(1+3*X)
 	dTs_dt = [0]*3
 	if mode!=0:
@@ -38,9 +39,10 @@ def coolt(Tb_old, Tdm_old, nb, nold, v_old, rhob_old, rhodm_old, z, mode, Mdm, s
 	dTb_dt = cool(Tb_old, nb, nold, J_21, z, gamma, X, T0) + dTs_dt[1]
 	return -Tb_old/dTb_dt
 	
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 0.1, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = 1e3*YR, J_21=0.0, Tmin = 1e-10, vmin = 1e-10):
+def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = .1, vmin = 1e-10):
 	start = time.time()
 	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h)
+	#print(Mdm, sigma, init)
 	xh = 4.0*X/(1.0+3.0*X)
 	xhe, xd, xli = 1-xh, D, Li
 	refa = np.array([xh]*6+[xhe]*3+[xd]*3+[xli]*5)
@@ -49,14 +51,14 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 0.1, Mdm = 0.
 	tpost = min(fac/H(1/(1+zvir), Om, h), TZ(0)-t1)
 	tmax = t1 + tpost
 	dt0 = (tmax-t0)/num
-	print('Time step: {} yr'.format(dt0/YR))
+	#print('Time step: {} yr'.format(dt0/YR))
 	rhodm_z = lambda x: rho_z(x, zvir, dmax)*(Om-Ob)/Om
 	rhob_z = lambda x: rho_z(x, zvir, dmax)*Ob/Om
 	Ns = len(init['X'])
 	lz = [z0]
 	lt = [t0]
-	lTb = [init['Tb']]
-	lTdm = [init['Tdm']]
+	lTb = [max(init['Tb'], Tmin)]
+	lTdm = [max(init['Tdm'], Tmin/1e10)]
 	lv = [init['vbdm']]
 	lrhob = [rhob_z(z0)]
 	lrhodm = [rhodm_z(z0)]
@@ -65,6 +67,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 0.1, Mdm = 0.
 	tag0 = 0
 	tag1 = 0
 	TV = Tvir(Mh, zvir, dmax)
+	VV = Vcir(Mh, zvir, dmax)
 	tag2 = 0
 	if lTb[0]>TV:
 		tag2 = 1
@@ -96,22 +99,22 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 0.1, Mdm = 0.
 			dv_dt_old = dTs_dt_old[2] + dlnrho_dt_old*(gamma-1)*v_old
 		else:
 			dt_T = dt0
-			if abs(dTb_dt_old*dt_T)>epsT*Tb_old:
+			if abs(dTb_dt_old*dt_T)>epsT*Tb_old and Tb_old>Tmin:
 				dt_T = max(epsT*Tb_old/abs(dTb_dt_old), dtmin)
 		if dt_T + t_cum>tmax:
 			dt_T = tmax - t_cum
-			t_cum = tmax
 		if tag2==1:
 			if Tb_old<TV:
 				tag2 = 0
 		#if max(Tb_old, Tdm_old) > TV and tag0==0 and tag2==0:
 		#	Tb_old = TV
 		#	tag0 = 1
-		if z<zvir and tag1==0 and tag0==0:
+		if z<=zvir and tag1==0 and tag0==0:
 			Tb_V = Tb_old
 			Tb_old = max(TV, Tb_old)
 			Tdm_old = max(TV, Tdm_old)
-			pV = [Tb_old, Tdm_old, nb, nold*nb, v_old, rhob_old, rhodm_old, z]
+			v_old = max(VV, v_old)
+			pV = [Tb_old, Tdm_old, v_old, nb, nold*nb, rhob_old, rhodm_old, z]
 			tcool = coolt(*pV, mode, *para)
 			tag1 = 1
 		if count==0:
@@ -142,7 +145,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 0.1, Mdm = 0.
 		dTdm_dt = dTs_dt[0] + dlnrho_dt*(gamma-1)*Tdm_old
 		dv_dt = dTs_dt[2] + dlnrho_dt*(gamma-1)*v_old
 		Tb_old = max(Tb_old + (dTb_dt + dTb_dt_old)*abund[1]/2.0, Tmin)
-		Tdm_old = max(Tdm_old + (dTdm_dt + dTdm_dt_old)*abund[1]/2.0, Tmin)
+		Tdm_old = max(Tdm_old + (dTdm_dt + dTdm_dt_old)*abund[1]/2.0, Tmin/1e10)
 		v_old = max(v_old + (dv_dt + dv_dt_old)*abund[1]/2.0, vmin)
 		dTb_dt_old = dTb_dt
 		dTdm_dt_old = dTdm_dt
@@ -190,6 +193,9 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 0.1, Mdm = 0.
 	print('Time taken: {} s'.format(end-start))
 	return d
 
+Mup = lambda z: 2.5e7*((1+z)/10)**-1.5
+Mdown = lambda z: 1e6*((1+z)/10)**-2
+
 def stored(d, Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, rep = 'data/'):
 	out0 = [d['t'], d['z'], d['Tb'], d['Tdm'], d['v'], d['rho'], d['nb']]
 	out1 = [[d['rat'], d['rat0'], d['rat1'], d['rat2'], d['s'], d['Tvir'], d['TbV'], d['m']]]
@@ -216,28 +222,266 @@ def readd(Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, dmax
 	d['m'] = M_T(d['TbV']/d['rat0'], zvir, dmax)
 	return d
 
-def Mth_z(z1, z2, nzb = 10, m1 = 1e4, m2 = 1e8, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774):
+def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774):
 	m0 = (m1*m2)**0.5
-	lm = np.logspace(np.log10(m1), np.log10(m2), nmb)
 	lz = np.linspace(z1, z2, nzb)
 	out = []
+	lxh2 = []
+	lxhd = []
 	for z in lz:
-		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h)
+		mmax = Mup(z)
+		lm = np.logspace(np.log10(m1), np.log10(mmax), nmb)
+		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h, fac = 1e-3)
 		tffV = 1/H(1/(1+z), Om, h) #tff(z, dmax)
 		lT = [Tvir(m, z, dmax) for m in lm]
-		pV = d['pV'][2:]
-		lt = [max(coolt(T, T, *pV, mode, *d['para'])/tffV, 1e-4) for T in lT]
+		lv = [Vcir(m, z, dmax) for m in lm]
+		pV = d['pV'][3:]
+		#print(pV)
+		lt = [max(coolt(T, T, v, *pV, mode, *d['para'])/tffV, 1e-4) for T, v in zip(lT, lv)]
 		#print(lt)
-		rat_m = interp1d(np.log10(lt), np.log10(lm))
-		mth = 10**rat_m(np.log10(rat))
+		if np.min(lt)>rat or np.max(lt)<rat:
+			mth = mmax
+		else:
+			rat_m = interp1d(np.log10(lt), np.log10(lm))
+			mth = 10**rat_m(np.log10(rat))
 		#print(mth)
 		out.append(mth)
-	return np.array(out), lz
+		lxh2.append(d['X'][3][-1])
+		lxhd.append(d['X'][11][-1])
+	return [np.array(out), lz, lxh2, lxhd]
+
+def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin = 10, fac = 1e-3, rat = 1.0, ncore=4):
+	lm = np.logspace(m1, m2, nbin)
+	ls = np.logspace(s1, s2, nbin)
+	X, Y = np.meshgrid(lm, ls, indexing = 'ij')
+	mmax = Mup(17)
+	lm0 = np.logspace(2, np.log10(mmax), 100)
+	lMh = np.zeros(X.shape)
+	lXH2 = np.zeros(X.shape)
+	lXHD = np.zeros(X.shape)
+	np_core = int(nbin/ncore)
+	lpr = [[i*np_core, (i+1)*np_core] for i in range(ncore-1)] + [[(ncore-1)*np_core, nbin]]
+	print(lpr)
+	manager = mp.Manager()
+	def sess(pr0, pr1, j):
+		out = []
+		for i in range(pr0, pr1):
+			print(lm[i], ls[j]*1e-20)
+			d = evolve(1e6, z, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, mode = 1, dmax = dmax, fac = fac)
+			tffV = 1/H(1/(1+z))
+			lT = [Tvir(m, z, dmax) for m in lm0]
+			lv = [Vcir(m, z, dmax) for m in lm0]
+			pV = d['pV'][3:]
+			lt = [max(coolt(T, T, v, *pV, 1, *d['para'])/tffV, 1e-4) for T, v in zip(lT, lv)]
+			if np.min(lt)>rat or np.max(lt)<rat:
+				mth = mmax
+			else:
+				rat_m = interp1d(np.log10(lt), np.log10(lm0))
+				mth = 10**rat_m(np.log10(rat))
+			out.append([mth, d['X'][3][-1], d['X'][11][-1]])
+		output.put((pr0, np.array(out).T))
+	for i in range(nbin):
+		output = manager.Queue()
+		pros = [mp.Process(target=sess, args=(lpr[k][0], lpr[k][1], i)) for k in range(ncore)]
+		for p in pros:
+			p.start()
+		for p in pros:
+			p.join()
+		out = [output.get() for p in pros]
+		out.sort()
+		lMh[:,i] = np.hstack([x[1][0] for x in out])
+		lXH2[:,i] = np.hstack([x[1][1] for x in out])
+		lXHD[:,i] = np.hstack([x[1][2] for x in out])
+		#for j in range(nbin):
+		#	sol = T21_pred(v0, lm[i], ls[j]*1e-20, xa0)
+		#	lT[i,j] = -sol[0]
+		#	lTb[i,j] = sol[1]
+	return X, Y*1e-20, lMh, lXH2, lXHD
 
 if __name__=="__main__":
+	#"""
+	tag = 0
+	v0 = 10
+	nbin = 16
+	ncore = 4
+	dmax = 200.
+
+	#refMh = Mth_z(16, 17, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1)[0][1]
+	#refd = stored(evolve(1e6, 17, v0 = v0, fac = 1e-3, mode = 1, dmax = dmax), 1e6, 17, 0)
+	#xH2r = refd['X'][3][-1]
+	#xHDr = refd['X'][11][-1]
+	#totxt('ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
+	refMh, xH2r, xHDr = retxt('ref.txt',1,0,0)[0]
+
+	print('Reference mass thresold: {} 10^6 Msun'.format(refMh/1e6))
+	print('Reference H2 abundance: {} * 10^-4'.format(xH2r*1e4))
+	print('Reference HD abundance: {} * 10^-3'.format(xHDr*1e3))
+
+	if tag==0:
+		X, Y, Mh, XH2, XHD = parasp(v0, m1 = -4, m2 = 1, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = 1e-3)
+		totxt('X_'+str(v0)+'.txt',X,0,0,0)
+		totxt('Y_'+str(v0)+'.txt',Y,0,0,0)
+		totxt('Mh_'+str(v0)+'.txt',Mh,0,0,0)
+		totxt('XH2_'+str(v0)+'.txt',XH2,0,0,0)
+		totxt('XHD_'+str(v0)+'.txt',XHD,0,0,0)
+	else:
+		X = np.array(retxt('X_'+str(v0)+'.txt',nbin,0,0))
+		Y = np.array(retxt('Y_'+str(v0)+'.txt',nbin,0,0))
+		Mh = np.array(retxt('Mh_'+str(v0)+'.txt',nbin,0,0))
+		XH2 = np.array(retxt('XH2_'+str(v0)+'.txt',nbin,0,0))
+		XHD = np.array(retxt('XHD_'+str(v0)+'.txt',nbin,0,0))
+
+	plt.figure()
+	ctf = plt.contourf(X, Y, np.log10(Mh/1e6), 100, cmap=plt.cm.Blues)
+	for c in ctf.collections:
+		c.set_edgecolor('face')
+	cb = plt.colorbar()
+	cb.set_label(r'$\log(M_{\mathrm{th}}\ [10^{6}\ M_{\odot}])$',size=12)
+	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 100), cmap=plt.cm.jet)
+	plt.contour(X, Y, np.log10(Mh/1e6), [np.log10(refMh/1e6)], colors='k')
+	plt.plot([0.3], [8e-20], '*', color='purple')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{Gev}]$')
+	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
+	plt.tight_layout()
+	plt.savefig('MthMap_v0_'+str(v0)+'.pdf')
+
+	plt.figure()
+	ctf = plt.contourf(X, Y, XH2*1e4, 100, cmap=plt.cm.Blues)
+	for c in ctf.collections:
+		c.set_edgecolor('face')
+	cb = plt.colorbar()
+	cb.set_label(r'$x_{\mathrm{H_{2}}}\cdot 10^{4}$',size=12)
+	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 100), cmap=plt.cm.jet)
+	plt.contour(X, Y, XH2*1e4, [xH2r*1e4], colors='k')
+	plt.plot([0.3], [8e-20], '*', color='purple')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{Gev}]$')
+	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
+	plt.tight_layout()
+	plt.savefig('XH2Map_v0_'+str(v0)+'.pdf')
+
+	plt.figure()
+	ctf = plt.contourf(X, Y, XHD*1e3, 100, cmap=plt.cm.Blues)
+	for c in ctf.collections:
+		c.set_edgecolor('face')
+	cb = plt.colorbar()
+	cb.set_label(r'$x_{\mathrm{HD}}\cdot 10^{3}$',size=12)
+	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 100), cmap=plt.cm.jet)
+	plt.contour(X, Y, XHD*1e3, [xHDr*1e3], colors='k')
+	plt.plot([0.3], [8e-20], '*', color='purple')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{Gev}]$')
+	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
+	plt.tight_layout()
+	plt.savefig('XHDMap_v0_'+str(v0)+'.pdf')
+	#"""
+
+	#"""
+	tag = 0
+	v0 = 10
+	if tag==0:
+		lm_, lz_, lxh2_, lxhd_ = Mth_z(10, 100, 46, mode = 1, v0 = v0)
+		#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0)
+		#totxt('Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
+		totxt('Mthz_BDMS_'+str(v0)+'.txt',[lz_, lm_, lxh2_, lxhd_],0,0,0)
+	lz_, lm_, lxh2_, lxhd_ = retxt('Mthz_BDMS_'+str(v0)+'.txt',4,0,0)
+	lz, lm, lxh2, lxhd = retxt('Mthz_CDM.txt',4,0,0)
+	plt.figure()
+	plt.plot(lz, lm, label='CDM')
+	plt.plot(lz_, lm_, '--', label='BDMS')
+	plt.legend()
+	plt.xlabel(r'$z$')
+	plt.ylabel(r'$M_{\mathrm{th}}\ [M_{\odot}]$')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.tight_layout()
+	plt.savefig('Mth_z_'+str(v0)+'.pdf')
+	plt.figure()
+	plt.plot(lz, lxh2, label='CDM')
+	plt.plot(lz_, lxh2_, '--', label='BDMS')
+	plt.legend()
+	plt.xlabel(r'$z$')
+	plt.ylabel(r'$x_{\mathrm{H_{2}}}$')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.tight_layout()
+	plt.savefig('XH2_z_'+str(v0)+'.pdf')
+	plt.figure()
+	plt.plot(lz, lxhd, label='CDM')
+	plt.plot(lz_, lxhd_, '--', label='BDMS')
+	plt.legend()
+	plt.xlabel(r'$z$')
+	plt.ylabel(r'$x_{\mathrm{HD}}$')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.tight_layout()
+	plt.savefig('XHD_z_'+str(v0)+'.pdf')
+	#plt.show()
+	#"""
+	
+	#"""
+	lls = ['-', '--', '-.', ':']*2
+	tag = 1
+	nz = 3
+	z1, z2 = 20, 100
+	lv = np.logspace(-1, 3, 50)
+	if tag==0:
+		out = []
+		for v in lv:
+			d = Mth_z(z1, z2, nz, mode = 1, v0 = v)
+			out.append(d)
+		lz = d[1]
+		lm = [[x[0][i] for x in out] for i in range(len(d[0]))]
+		lxh2 = [[x[2][i] for x in out] for i in range(len(d[0]))]
+		lxhd = [[x[3][i] for x in out] for i in range(len(d[0]))]
+		totxt('Mth_v.txt',lm,0,0,0)
+		totxt('xh2_v.txt',lxh2,0,0,0)
+		totxt('xhd_v.txt',lxhd,0,0,0)
+		totxt('zbase.txt',[lz],0,0,0)
+		totxt('vbase.txt',[lv],0,0,0)
+	lv = np.array(retxt('vbase.txt',1,0,0)[0])
+	lz = retxt('zbase.txt',1,0,0)[0]
+	nz = len(lz)
+	lm = np.array(retxt('Mth_v.txt',nz,0,0))
+	lxh2 = np.array(retxt('xh2_v.txt',nz,0,0))
+	lxhd = np.array(retxt('xhd_v.txt',nz,0,0))
+	plt.figure()
+	a = [plt.plot(lv, lm[i], label=r'$z='+str(int(lz[i]*100)/100)+'$', ls = lls[i]) for i in range(nz)]
+	plt.legend()
+	plt.xlabel(r'$v_{\mathrm{bDM},0}\ [\mathrm{km\ s^{-1}}]$')
+	plt.ylabel(r'$M_{\mathrm{th}}\ [M_{\odot}]$')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.tight_layout()
+	plt.savefig('Mth_v.pdf')
+	plt.figure()
+	a = [plt.plot(lv, lxh2[i], label=r'$z='+str(int(lz[i]*100)/100)+'$', ls = lls[i]) for i in range(nz)]
+	plt.legend()
+	plt.xlabel(r'$v_{\mathrm{bDM},0}\ [\mathrm{km\ s^{-1}}]$')
+	plt.ylabel(r'$x_{\mathrm{H_{2}}}$')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.tight_layout()
+	plt.savefig('XH2_v.pdf')
+	plt.figure()
+	a = [plt.plot(lv, lxhd[i], label=r'$z='+str(int(lz[i]*100)/100)+'$', ls = lls[i]) for i in range(nz)]
+	plt.legend()
+	plt.xlabel(r'$v_{\mathrm{bDM},0}\ [\mathrm{km\ s^{-1}}]$')
+	plt.ylabel(r'$x_{\mathrm{HD}}$')
+	plt.xscale('log')
+	plt.yscale('log')
+	plt.tight_layout()
+	plt.savefig('XHD_v.pdf')
+	#"""
+
+	"""
 	tag = 0
 	m = 1e6
-	zvir = 70
+	zvir = 10
 	v0 = 30
 	rep0 = 'example/'
 	dmax = 200 #1e3
@@ -277,15 +521,17 @@ if __name__=="__main__":
 	plt.savefig(rep0+'Example_vdDM_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 
 	plt.figure()
-	plt.plot(d0['t'], d0['Tb'], label='CDM')
-	plt.plot(d1['t'], d1['Tb'], '--', label='BDMS')
+	plt.plot(d0['t'], d0['Tb'], label=r'$T_{\mathrm{b}}$, CDM')
+	plt.plot(d1['t'], d1['Tb'], '--', label=r'$T_{\mathrm{b}}$, BDMS')
+	plt.plot(d0['t'], d0['Tdm'], '-.', label=r'$T_{\mathrm{DM}}$, CDM')
+	plt.plot(d1['t'], d1['Tdm'], ':', label=r'$T_{\mathrm{DM}}$, BDMS')
 	plt.xlabel(r'$t\ [\mathrm{yr}]$')
-	plt.ylabel(r'$T_{\mathrm{b}}\ [\mathrm{K}]$')
+	plt.ylabel(r'$T\ [\mathrm{K}]$')
 	plt.legend()
 	plt.xscale('log')
 	plt.yscale('log')
 	plt.tight_layout()
-	plt.savefig(rep0+'Example_Tb_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
+	plt.savefig(rep0+'Example_T_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 
 	plt.figure()
 	plt.plot(d0['t'], d0['X'][3], label='CDM')
@@ -327,25 +573,6 @@ if __name__=="__main__":
 	#plt.ylim(1e-5, 1e-3)
 	plt.tight_layout()
 	plt.savefig(rep0+'Example_X_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'.pdf')
-	#plt.show()
-
-	"""
-	#mode = 0
-	Mdm, sigma = 0.3, 1e-19
-	lm_, lz_ = Mth_z(10, 100, 19, mode = 1)
-	lm, lz = Mth_z(10, 100, 19, mode = 0)
-	plt.figure()
-	plt.plot(lz, lm, label='CDM')
-	plt.plot(lz_, lm_, '--', label='BDMS')
-	plt.legend()
-	plt.xlabel(r'$z$')
-	plt.ylabel(r'$M_{\mathrm{th}}\ [M_{\odot}]$')
-	plt.xscale('log')
-	plt.yscale('log')
-	plt.tight_layout()
-	plt.savefig('Mth_z.pdf')
-	totxt('Mthz_CDM.txt',[lz, lm],0,0,0)
-	totxt('Mthz_BDMS.txt',[lz_, lm_],0,0,0)
 	#plt.show()
 	"""
 
