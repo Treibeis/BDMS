@@ -309,14 +309,14 @@ if __name__=="__main__":
 	dmax = 200.
 	rat = 1.
 
-	refMh = Mth_z(16, 17, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1)[0][1]
+	refMh = Mth_z(16, 17, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat)[0][1]
 	refd = stored(evolve(1e6, 17, v0 = v0, fac = 1e-3, mode = 1, dmax = dmax), 1e6, 17, 0)
 	xH2r = refd['X'][3][-1]
 	xHDr = refd['X'][11][-1]
 	totxt('ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
 	refMh, xH2r, xHDr = retxt('ref.txt',1,0,0)[0]
 
-	print('Reference mass thresold: {} 10^5 Msun'.format(refMh/1e5))
+	print('Reference mass thresold: {} 10^6 Msun'.format(refMh/1e6))
 	print('Reference H2 abundance: {} * 10^-4'.format(xH2r*1e4))
 	print('Reference HD abundance: {} * 10^-3'.format(xHDr*1e3))
 
@@ -336,14 +336,14 @@ if __name__=="__main__":
 		XHD = np.array(retxt('XHD_'+str(v0)+'.txt',nbin,0,0))
 
 	plt.figure()
-	ctf = plt.contourf(X, Y, Mh/1e5, 2*nbin, cmap=plt.cm.Blues)
+	ctf = plt.contourf(X, Y, Mh/1e6, 2*nbin, cmap=plt.cm.Blues)
 	for c in ctf.collections:
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
-	cb.set_label(r'$M_{\mathrm{th}}\ [10^{5}\ M_{\odot}]$',size=12)
+	cb.set_label(r'$M_{\mathrm{th}}\ [10^{6}\ M_{\odot}]$',size=12)
 	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 2*nbin), cmap=plt.cm.jet)
-	plt.contour(X, Y, Mh/1e5, [refMh/1e5], colors='k')
-	plt.contour(X, Y, Mh/1e5, [Mup(17)/1e5], colors='k', linestyles='--')
+	plt.contour(X, Y, Mh/1e6, [refMh/1e6], colors='k')
+	plt.contour(X, Y, Mh/1e6, [Mup(17)/1e6], colors='k', linestyles='--')
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
