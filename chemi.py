@@ -153,7 +153,7 @@ def rates(J_21, T, n):
 		k[35] = 0.0
 	return k
 
-def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0):
+def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax = 100):
 	total = 0
 	out = np.zeros(Ns,dtype='float')
 	dt_cum = 0.0
@@ -164,15 +164,15 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0):
 		k = rates(J_21, T, ny)
 		Cr[5]=k[21]*ny[0]+k[22]*ny[6]+k[23]*ny[7]+(k[0]*ny[0]+k[1]*ny[6]+k[2]*ny[7])*ny[5]
 		Ds[5]=k[3]*ny[1]+k[4]*ny[7]+k[5]*ny[8]
-		if (dt*abs(Cr[5]-Ds[5]*ny[5])>epsH*abs(ny[5])) and (ny[5]>0):
+		if (dt*abs(Cr[5]-Ds[5]*ny[5])>epsH*abs(ny[5])) and (ny[5]>0) and dt>dt0/nmax:
 			dt = dt/2.0 #epsH*ny[5]/abs(Cr[5]-Ds[5]*ny[5])#
 			continue
 		if ny[5]<=1e-4*xnh and T<2e4:
 			for i in [3, 11]:
 				if (dt*abs(Cr0[i]-Ds0[i]*ny[i])>epsH*abs(ny[i])) and (ny[i]/xnh>1e-10):
-					dt = epsH*abs(ny[i]/(Cr0[i]-Ds0[i]*ny[i])) #dt/2.0
-		if dt>1.e5*3.14e7:
-			dt = 1.e5*3.14e7
+					dt = max(epsH*abs(ny[i]/(Cr0[i]-Ds0[i]*ny[i])),dt0/nmax) #dt/2.0
+		#if dt>1.e5*3.14e7:
+		#	dt = 1.e5*3.14e7
 		if dt + dt_cum>dt0:
 			dt = dt0 - dt_cum
 			dt_cum = dt0
