@@ -40,7 +40,7 @@ def T_b(z, a1=1./119, a2=1./115, T0=2.726):
 	a = 1./(1+z)
 	return T0/(a*(1+a/(a1*(1+(a2/a)**1.5))))
 
-def T_dm(z, m = 1., T0=2.726):
+def T_dm(z, m = .3, T0=2.726):
 	zc = m*1e9*eV / ((3./2)*BOL*T0) - 1
 	Tc = T0*(1+zc)
 	return T0*(1+z) * (z>zc) + Tc*((1+z)/(1+zc))**2 * (z<=zc)
@@ -107,8 +107,8 @@ def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.31
 	xh = 4*X/(1+3*X)
 	def func(y, a):
 		if y[1]<Tmin: #y[1]<=y[0]:
-			dTdm = -2*y[0]/a
-			dTb = -2*y[1]/a
+			dTdm = 0.0#-2*y[0]/a
+			dTb = 0.0#-2*y[1]/a
 		else:
 			rhob = Ob/Om * rhom(a, Om, h)
 			QH = Q_IDMB(rhob, y[2], y[0], y[1], Mdm*GeV_to_mass, PROTON, sigma)*xh
@@ -138,8 +138,8 @@ def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.31
 	sol = sol.T
 	d['lz'] = lz
 	d['la'] = la
-	d['Tb'] = sol[1]
-	d['Tdm'] = sol[0]
+	d['Tb'] = sol[1] * (sol[1]>Tmin) + Tmin * (sol[1]<=Tmin)
+	d['Tdm'] = sol[0] * (sol[0]>Tmin/1e10) + Tmin/1e10 * (sol[0]<=Tmin/1e10)
 	d['v'] = sol[2]
 	d['u'] = uthf(PROTON, Mdm*GeV_to_mass, d['Tb'], d['Tdm'])
 	return d

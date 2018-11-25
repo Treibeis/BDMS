@@ -171,8 +171,8 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax
 			for i in [3, 11]:
 				if (dt*abs(Cr0[i]-Ds0[i]*ny[i])>epsH*abs(ny[i])) and (ny[i]/xnh>1e-10):
 					dt = max(epsH*abs(ny[i]/(Cr0[i]-Ds0[i]*ny[i])),dt0/nmax) #dt/2.0
-		#if dt>1.e5*3.14e7:
-		#	dt = 1.e5*3.14e7
+		if dt>1.e5*3.14e7:
+			dt = 1.e5*3.14e7
 		if dt + dt_cum>dt0:
 			dt = dt0 - dt_cum
 			dt_cum = dt0
