@@ -100,7 +100,9 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			dTs_dt = [0]*3
 			if mode!=0:
 				dTs_dt_old = bdmscool(Tdm_old, Tb_old, v_old, z0, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h, T0 = T0)
-			dTb_dt_old = cool(Tb_old, nb, nold*nb, J_21, z0, gamma, X, T0) + dTs_dt_old[1] + dlnrho_dt_old*(gamma-1)*Tb_old
+			dTb_dt_old = cool(Tb_old, nb, nold*nb, J_21, z0, gamma, X, T0) \
+						+ dTs_dt_old[1] + dlnrho_dt_old*(gamma-1)*Tb_old \
+						+ GammaC(z0, Om, Ob, h = h, X = X, T0 = T0)*(T0*(1+z0)-Tb_old)
 			dTdm_dt_old = dTs_dt_old[0] + dlnrho_dt_old*(gamma-1)*Tdm_old
 			dv_dt_old = dTs_dt_old[2] + dlnrho_dt_old*(gamma-1)*v_old
 		else:
@@ -136,7 +138,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		dlnrho_dt = Dlnrho(t_cum, t_cum + abund[1]/2.0, zvir, dmax)
 		if mode!=0:
 			dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, z, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h, T0 = T0)
-		dTb_dt = cool(Tb_old, nb, nold*nb, J_21, z, gamma, X, T0) + dTs_dt[1]
+		dTb_dt = cool(Tb_old, nb, nold*nb, J_21, z, gamma, X, T0) + dTs_dt[1] + GammaC(z, Om, Ob, h = h, X = X, T0 = T0)*(T0*(1+z)-Tb_old)
 		if tag0==0:
 			dTb_dt += dlnrho_dt*(gamma-1)*Tb_old
 		dTdm_dt = dTs_dt[0] + dlnrho_dt*(gamma-1)*Tdm_old
@@ -293,7 +295,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 			#print(pV)
 			lt0 = np.array([coolt(T, T, v, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
 			if np.max(lt0)<=0:
-				print('Heating!')
+				print('Heating!', np.max(lt0))
 				mth = np.nan
 			else:
 				lt = lt0[lt0>0]
@@ -326,7 +328,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	return X, Y*1e-20, lMh, lXH2, lXHD
 
 if __name__=="__main__":
-	tag = 0
+	tag = 1
 	v0 = 90
 	nbin = 16
 	ncore = 4
@@ -336,6 +338,13 @@ if __name__=="__main__":
 	rep = '1-sigma/'
 	if not os.path.exists(rep):
 		os.makedirs(rep)
+
+	#refMh = Mth_z(16, 17, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)[0][1]
+	#refd = stored(evolve(1e6, 17, v0 = v0, fac = fac, mode = 0, dmax = dmax), 1e6, 17, 0)
+	#xH2r = refd['X'][3][-1]
+	#xHDr = refd['X'][11][-1]
+	#totxt(rep+'ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
+
 	#"""
 	if tag==0:
 		refMh = Mth_z(16, 17, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)[0][1]
@@ -373,7 +382,7 @@ if __name__=="__main__":
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
-	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{Gev}]$')
+	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{GeV}]$')
 	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
 	plt.tight_layout()
 	plt.savefig(rep+'MthMap_v0_'+str(v0)+'.pdf')
@@ -389,7 +398,7 @@ if __name__=="__main__":
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
-	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{Gev}]$')
+	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{GeV}]$')
 	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
 	plt.tight_layout()
 	plt.savefig(rep+'XH2Map_v0_'+str(v0)+'.pdf')
@@ -405,14 +414,18 @@ if __name__=="__main__":
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
-	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{Gev}]$')
+	plt.xlabel(r'$m_{\mathrm{DM}}c^{2}\ [\mathrm{GeV}]$')
 	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
 	plt.tight_layout()
 	plt.savefig(rep+'XHDMap_v0_'+str(v0)+'.pdf')
 	#"""
 
 	#"""
-	tag = 0
+
+	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
+	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
+
+	tag = 1
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
@@ -427,7 +440,7 @@ if __name__=="__main__":
 	plt.plot(lz_, lm_, '--', label='BDMS')
 	plt.plot(lz, Mdown(lz), 'k-.', label='Trenti & Stiavelli (2009)')
 	plt.legend()
-	plt.xlabel(r'$z$')
+	plt.xlabel(r'$z_{\mathrm{vir}}$')
 	plt.ylabel(r'$M_{\mathrm{th}}\ [M_{\odot}]$')
 	plt.xscale('log')
 	plt.yscale('log')
@@ -437,7 +450,7 @@ if __name__=="__main__":
 	plt.plot(lz, lxh2, label='CDM')
 	plt.plot(lz_, lxh2_, '--', label='BDMS')
 	plt.legend()
-	plt.xlabel(r'$z$')
+	plt.xlabel(r'$z_{\mathrm{vir}}$')
 	plt.ylabel(r'$x_{\mathrm{H_{2}}}$')
 	plt.xscale('log')
 	plt.yscale('log')
@@ -447,7 +460,7 @@ if __name__=="__main__":
 	plt.plot(lz, lxhd, label='CDM')
 	plt.plot(lz_, lxhd_, '--', label='BDMS')
 	plt.legend()
-	plt.xlabel(r'$z$')
+	plt.xlabel(r'$z_{\mathrm{vir}}$')
 	plt.ylabel(r'$x_{\mathrm{HD}}$')
 	plt.xscale('log')
 	plt.yscale('log')
@@ -462,6 +475,10 @@ if __name__=="__main__":
 	#rat = 10.
 	nz = 3
 	z1, z2 = 20, 100
+
+	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
+	#totxt(rep+'ref_z.txt', d0, 0, 0)
+
 	lv = np.logspace(-1, 3, 50)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
@@ -526,7 +543,7 @@ if __name__=="__main__":
 	"""
 	tag = 0
 	m = 1e6
-	zvir = 100
+	zvir = 70
 	v0 = 30
 	rep0 = 'example/'
 	dmax = 200 #1e3

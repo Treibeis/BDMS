@@ -97,7 +97,7 @@ def bdmscool(Tdm, Tb, v, z, rhob, rhodm, Mdm, sigma, gamma, X, Om, Ob, h, OR = 9
 	#rhodm = (Om-Ob)/Om * rhom(a, Om, h)
 	QH = Q_IDMB(rhodm, v, Tb, Tdm, PROTON, Mdm*GeV_to_mass, sigma, gamma)*xh
 	QHe = Q_IDMB(rhodm, v, Tb, Tdm, 4*PROTON, Mdm*GeV_to_mass, sigma, gamma)*(1-xh)
-	dTb = (QH+QHe) + GammaC(1/a-1, Om, Ob, OR, h, X, T0 = T0)*(T0/a-Tb)
+	dTb = (QH+QHe) #+ GammaC(1/a-1, Om, Ob, OR, h, X, T0 = T0)*(T0/a-Tb)
 	DH = drag(rho, v, Tb, Tdm, PROTON, Mdm*GeV_to_mass, sigma)
 	DHe = drag(rho, v, Tb, Tdm, 4*PROTON, Mdm*GeV_to_mass, sigma)	
 	dv = - (xh*DH + (1-xh)*DHe)
