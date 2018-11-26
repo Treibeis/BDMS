@@ -76,19 +76,20 @@ def uthf(mb, mdm, Tb, Tdm):
 def drag(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
 	r = v/uth
-	return rho*sigma*1e20/(mb+mdm)*(erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/v**2
+	A = (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/v**2 * (r>1e-5) + (2/np.pi)**0.5*r/(3*uth**2) * (r<=1e-5)
+	return rho*sigma*1e20/(mb+mdm) * A
 
 def Q_IDMB(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20, gamma = 5/3):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
 	r = v/uth
 	c = (Tdm-Tb)/uth**3 * ((2/np.pi)**0.5*np.exp(-r**2/2))
-	d = mdm/v * (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/BOL
+	d = mdm/v * (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/BOL * (r>1e-5) + mdm/BOL * (2/np.pi)**0.5*r**2/(3*uth) * (r<=1e-5)
 	out = mb*rho*sigma*1e20/(mdm+mb)**2 * (c + d)
 	return out*(gamma-1)
 
-def bdmscool(Tdm, Tb, v, z, rhob, rhodm, Mdm, sigma, gamma, X, Om, Ob, h, OR = 9.54e-5, T0 = 2.726):
+def bdmscool(Tdm, Tb, v, rhob, rhodm, Mdm, sigma, gamma, X):
 	xh = 4*X/(1+3*X)
-	a = 1/(1+z)
+	#a = 1/(1+z)
 	rho = rhob + rhodm
 	#rhob = Ob/Om * rhom(a, Om, h)
 	QH = Q_IDMB(rhob, v, Tdm, Tb, Mdm*GeV_to_mass, PROTON, sigma, gamma)*xh
@@ -106,6 +107,7 @@ def bdmscool(Tdm, Tb, v, z, rhob, rhodm, Mdm, sigma, gamma, X, Om, Ob, h, OR = 9
 def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76, a1=1./119, a2=1./115, T0=2.726, nb = 100000, Tmin = 0.1, vmin = 1e-10):
 	xh = 4*X/(1+3*X)
 	def func(y, a):
+		uth = (y[1]*BOL/PROTON+y[0]*BOL/(Mdm*GeV_to_mass))**0.5
 		if y[1]<Tmin: #y[1]<=y[0]:
 			dTdm = 0.0#-2*y[0]/a
 			dTb = 0.0#-2*y[1]/a
@@ -118,8 +120,8 @@ def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.31
 			QH = Q_IDMB(rhodm, y[2], y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)*xh
 			QHe = Q_IDMB(rhodm, y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)*(1-xh)
 			dTb = -2*y[1]/a + (GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1]) + (QH+QHe))/ (a*H(a, Om, h, OR))
-		if y[2]<vmin:
-			dv = -y[2]/a
+		if y[2]<vmin*uth:
+			dv = 0.0#-y[2]/a
 		else:
 			DH = drag(rhom(a, Om, h), y[2], y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)
 			DHe = drag(rhom(a, Om, h), y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)	

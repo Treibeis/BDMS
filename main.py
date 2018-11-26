@@ -36,7 +36,7 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 	xh = 4*X/(1+3*X)
 	dTs_dt = [0]*3
 	if mode!=0:
-		dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, z, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h)
+		dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, rhob_old, rhodm_old, Mdm, sigma, gamma, X)
 	dTb_dt = cool(Tb_old, nb, nold, J_21, z, gamma, X, T0) + dTs_dt[1]
 	if dTb_dt == 0:
 		return TZ(0)
@@ -46,7 +46,7 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = .1, vmin = 1e-10, nmax = int(1e6)):
 	start = time.time()
 	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h)
-	#print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
+	print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
 	xh = 4.0*X/(1.0+3.0*X)
 	xhe, xd, xli = 1-xh, D, Li
 	refa = np.array([xh]*6+[xhe]*3+[xd]*3+[xli]*5)
@@ -99,7 +99,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			dTs_dt_old = [0]*3
 			dTs_dt = [0]*3
 			if mode!=0:
-				dTs_dt_old = bdmscool(Tdm_old, Tb_old, v_old, z0, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h, T0 = T0)
+				dTs_dt_old = bdmscool(Tdm_old, Tb_old, v_old, rhob_old, rhodm_old, Mdm, sigma, gamma, X)
 			dTb_dt_old = cool(Tb_old, nb, nold*nb, J_21, z0, gamma, X, T0) \
 						+ dTs_dt_old[1] + dlnrho_dt_old*(gamma-1)*Tb_old \
 						+ GammaC(z0, Om, Ob, h = h, X = X, T0 = T0)*(T0*(1+z0)-Tb_old)
@@ -137,15 +137,16 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		z = z_t(t_cum)
 		dlnrho_dt = Dlnrho(t_cum, t_cum + abund[1]/2.0, zvir, dmax)
 		if mode!=0:
-			dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, z, rhob_old, rhodm_old, Mdm, sigma, gamma, X, Om, Ob, h, T0 = T0)
+			dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, rhob_old, rhodm_old, Mdm, sigma, gamma, X)
 		dTb_dt = cool(Tb_old, nb, nold*nb, J_21, z, gamma, X, T0) + dTs_dt[1] + GammaC(z, Om, Ob, h = h, X = X, T0 = T0)*(T0*(1+z)-Tb_old)
 		if tag0==0:
 			dTb_dt += dlnrho_dt*(gamma-1)*Tb_old
 		dTdm_dt = dTs_dt[0] + dlnrho_dt*(gamma-1)*Tdm_old
 		dv_dt = dTs_dt[2] + dlnrho_dt*(gamma-1)*v_old
+		uth = (Tb_old*BOL/PROTON+Tdm_old*BOL/(Mdm*GeV_to_mass))**0.5
 		Tb_old = max(Tb_old + (dTb_dt + dTb_dt_old)*abund[1]/2.0, Tmin)
 		Tdm_old = max(Tdm_old + (dTdm_dt + dTdm_dt_old)*abund[1]/2.0, Tmin/1e10)
-		v_old = max(v_old + (dv_dt + dv_dt_old)*abund[1]/2.0, vmin)
+		v_old = max(v_old + (dv_dt + dv_dt_old)*abund[1]/2.0, vmin*uth)
 		dTb_dt_old = dTb_dt
 		dTdm_dt_old = dTdm_dt
 		dv_dt_old = dv_dt
@@ -166,7 +167,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			Tb_V = Tb_old
 			Tb_old = max(TV, Tb_old)
 			Tdm_old = max(TV, Tdm_old)
-			v_old = max(VV, v_old)
+			#v_old = max(VV, v_old)
 			pV = [Tb_old, Tdm_old, v_old, nb, nold*nb, rhob_old, rhodm_old, z]
 			tcool = coolt(*pV, mode, *para)
 			tag1 = 1
@@ -249,9 +250,11 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 		tffV = 1/H(1/(1+z), Om, h) #tff(z, dmax)
 		lT = [Tvir(m, z, dmax) for m in lm]
 		lv = [Vcir(m, z, dmax) for m in lm]
-		pV = d['pV'][3:]
-		#print(pV)
-		lt0 = np.array([coolt(T, T, v, *pV, mode, *d['para'])/tffV for T, v in zip(lT, lv)])
+		print(d['pV'][2])
+		pV = d['pV'][2:]
+		#pV = d['pV'][3:]
+		lt0 = np.array([coolt(T, T, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
+		#lt0 = np.array([coolt(T, T, v, *pV, mode, *d['para'])/tffV for T, v in zip(lT, lv)])
 		if np.max(lt0)<=0:
 			print('Heating!')
 			mth = np.nan
@@ -287,13 +290,15 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 		for i in range(pr0, pr1):
 			lm0 = np.logspace(2, np.log10(mmax), 100)
 			d = evolve(1e6, z, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, mode = 1, dmax = dmax, fac = fac)
-			print(lm[i], ls[j]*1e-20)
+			#print(lm[i], ls[j]*1e-20)
 			tffV = 1/H(1/(1+z))
 			lT = [Tvir(m, z, dmax) for m in lm0]
 			lv = [Vcir(m, z, dmax) for m in lm0]
-			pV = d['pV'][3:]
-			#print(pV)
-			lt0 = np.array([coolt(T, T, v, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
+			print(d['pV'][2])
+			pV = d['pV'][2:]
+			#pV = d['pV'][3:]
+			lt0 = np.array([coolt(T, T, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
+			#lt0 = np.array([coolt(T, T, v, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
 			if np.max(lt0)<=0:
 				print('Heating!', np.max(lt0))
 				mth = np.nan
@@ -328,10 +333,10 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	return X, Y*1e-20, lMh, lXH2, lXHD
 
 if __name__=="__main__":
-	tag = 1
-	v0 = 90
-	nbin = 16
-	ncore = 4
+	tag = 0
+	v0 = 0.1
+	nbin = 32
+	ncore = 8
 	dmax = 18*np.pi**2 * 1
 	rat = 1.
 	fac = 1e-3
@@ -378,7 +383,8 @@ if __name__=="__main__":
 	cb.set_label(r'$M_{\mathrm{th}}\ [10^{6}\ M_{\odot}]$',size=12)
 	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 2*nbin), cmap=plt.cm.jet)
 	plt.contour(X, Y, Mh/1e6, [refMh/1e6], colors='k')
-	#plt.contour(X, Y, Mh/1e6, [Mup(17)/1e6], colors='k', linestyles='--')
+	print(np.min(Mh[Mh!=np.nan]/1e6))
+	plt.contour(X, Y, Mh/1e6, [Mup(17)/1e6], colors='k', linestyles='--')
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
