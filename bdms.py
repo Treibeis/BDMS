@@ -108,24 +108,29 @@ def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.31
 	xh = 4*X/(1+3*X)
 	def func(y, a):
 		uth = (y[1]*BOL/PROTON+y[0]*BOL/(Mdm*GeV_to_mass))**0.5
-		if y[1]<Tmin: #y[1]<=y[0]:
-			dTdm = 0.0#-2*y[0]/a
-			dTb = 0.0#-2*y[1]/a
-		else:
-			rhob = Ob/Om * rhom(a, Om, h)
-			QH = Q_IDMB(rhob, y[2], y[0], y[1], Mdm*GeV_to_mass, PROTON, sigma)*xh
-			QHe = Q_IDMB(rhob, y[2], y[0], y[1], Mdm*GeV_to_mass, 4*PROTON, sigma)*(1-xh)
-			dTdm = -2*y[0]/a + (QH+QHe)/ (a*H(a, Om, h, OR))
-			rhodm = (Om-Ob)/Om * rhom(a, Om, h)
-			QH = Q_IDMB(rhodm, y[2], y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)*xh
-			QHe = Q_IDMB(rhodm, y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)*(1-xh)
-			dTb = -2*y[1]/a + (GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1]) + (QH+QHe))/ (a*H(a, Om, h, OR))
 		if y[2]<vmin*uth:
+			v = 0.0
 			dv = 0.0#-y[2]/a
 		else:
 			DH = drag(rhom(a, Om, h), y[2], y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)
-			DHe = drag(rhom(a, Om, h), y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)	
-			dv = -y[2]/a - (xh*DH + (1-xh)*DHe)/(a*H(a, Om, h, OR))
+			DHe = drag(rhom(a, Om, h), y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)
+			v = y[2]	
+			dv = -v/a - (xh*DH + (1-xh)*DHe)/(a*H(a, Om, h, OR))
+		if y[1]<Tmin: #y[1]<=y[0]:
+			dTdm = 0.0#-2*y[0]/a
+			dTb = 0.0#-2*y[1]/a
+		elif y[1]<=y[0] and y[2]<=vmin*uth:
+			dTdm = -2*y[0]/a
+			dTb = -2*y[1]/a + GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1])/ (a*H(a, Om, h, OR))
+		else:
+			rhob = Ob/Om * rhom(a, Om, h)
+			QH = Q_IDMB(rhob, v, y[0], y[1], Mdm*GeV_to_mass, PROTON, sigma)*xh
+			QHe = Q_IDMB(rhob, v, y[0], y[1], Mdm*GeV_to_mass, 4*PROTON, sigma)*(1-xh)
+			dTdm = -2*y[0]/a + (QH+QHe)/ (a*H(a, Om, h, OR))
+			rhodm = (Om-Ob)/Om * rhom(a, Om, h)
+			QH = Q_IDMB(rhodm, v, y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)*xh
+			QHe = Q_IDMB(rhodm, v, y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)*(1-xh)
+			dTb = -2*y[1]/a + (GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1]) + (QH+QHe))/ (a*H(a, Om, h, OR))
 		return [dTdm, dTb, dv]
 	ai = 1/(1+z0)
 	af = 1/(1+z1)
