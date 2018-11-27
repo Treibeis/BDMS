@@ -104,7 +104,7 @@ def bdmscool(Tdm, Tb, v, rhob, rhodm, Mdm, sigma, gamma, X):
 	dv = - (xh*DH + (1-xh)*DHe)
 	return [dTdm, dTb, dv]
 
-def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76, a1=1./119, a2=1./115, T0=2.726, nb = 100000, Tmin = 0.1, vmin = 1e-10):
+def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76, a1=1./119, a2=1./115, T0=2.726, nb = 100000, Tmin = 1e-4, vmin = 1e-10):
 	xh = 4*X/(1+3*X)
 	def func(y, a):
 		uth = (y[1]*BOL/PROTON+y[0]*BOL/(Mdm*GeV_to_mass))**0.5

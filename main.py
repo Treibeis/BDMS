@@ -43,7 +43,7 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 	else:
 		return -Tb_old/dTb_dt
 	
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = .1, vmin = 1e-10, nmax = int(1e6)):
+def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1e-4, vmin = 1e-10, nmax = int(1e6)):
 	start = time.time()
 	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h)
 	print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
@@ -244,7 +244,7 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 	lxh2 = []
 	lxhd = []
 	for z in lz:
-		mmax = Mup(z)
+		mmax = Mup(z)*10
 		lm = np.logspace(np.log10(m1), np.log10(mmax), nmb)
 		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h, fac = fac)
 		tffV = 1/H(1/(1+z), Om, h) #tff(z, dmax)
@@ -277,7 +277,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	lm = np.logspace(m1, m2, nbin)
 	ls = np.logspace(s1, s2, nbin)
 	X, Y = np.meshgrid(lm, ls, indexing = 'ij')
-	mmax = Mup(17)
+	mmax = Mup(17)*10
 	lMh = np.zeros(X.shape)
 	lXH2 = np.zeros(X.shape)
 	lXHD = np.zeros(X.shape)
@@ -335,12 +335,12 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 if __name__=="__main__":
 	tag = 0
 	v0 = 0.1
-	nbin = 32
-	ncore = 8
+	nbin = 16
+	ncore = 4
 	dmax = 18*np.pi**2 * 1
 	rat = 1.
 	fac = 1e-3
-	rep = '1-sigma/'
+	rep = '1-sigma_ns/'
 	if not os.path.exists(rep):
 		os.makedirs(rep)
 
@@ -357,7 +357,7 @@ if __name__=="__main__":
 		xH2r = refd['X'][3][-1]
 		xHDr = refd['X'][11][-1]
 		totxt(rep+'ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
-		X, Y, Mh, XH2, XHD = parasp(v0, m1 = -4, m2 = 1, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat)
+		X, Y, Mh, XH2, XHD = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat)
 		totxt(rep+'X_'+str(v0)+'.txt',X,0,0,0)
 		totxt(rep+'Y_'+str(v0)+'.txt',Y,0,0,0)
 		totxt(rep+'Mh_'+str(v0)+'.txt',Mh,0,0,0)
@@ -376,15 +376,15 @@ if __name__=="__main__":
 	print('Reference HD abundance: {} * 10^-3'.format(xHDr*1e3))
 
 	plt.figure()
-	ctf = plt.contourf(X, Y, Mh/1e6, 2*nbin, cmap=plt.cm.Blues)
+	ctf = plt.contourf(X, Y, np.log10(Mh/1e6), 2*nbin, cmap=plt.cm.Blues)
 	for c in ctf.collections:
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
-	cb.set_label(r'$M_{\mathrm{th}}\ [10^{6}\ M_{\odot}]$',size=12)
+	cb.set_label(r'$\log(M_{\mathrm{th}}\ [10^{6}\ M_{\odot}])$',size=12)
 	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 2*nbin), cmap=plt.cm.jet)
-	plt.contour(X, Y, Mh/1e6, [refMh/1e6], colors='k')
+	plt.contour(X, Y, np.log10(Mh/1e6), [np.log10(refMh/1e6)], colors='k')
 	print(np.min(Mh[Mh!=np.nan]/1e6))
-	plt.contour(X, Y, Mh/1e6, [Mup(17)/1e6], colors='k', linestyles='--')
+	plt.contour(X, Y, np.log10(Mh/1e6), [np.log10(Mup(17)/1e6)], colors='k', linestyles='--')
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
@@ -431,7 +431,7 @@ if __name__=="__main__":
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 1
+	tag = 0
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
@@ -477,7 +477,7 @@ if __name__=="__main__":
 	
 	#"""
 	lls = ['-', '--', '-.', ':']*2
-	tag = 1
+	tag = 0
 	#rat = 10.
 	nz = 3
 	z1, z2 = 20, 100
@@ -549,10 +549,10 @@ if __name__=="__main__":
 	"""
 	tag = 0
 	m = 1e6
-	zvir = 70
+	zvir = 10
 	v0 = 30
 	rep0 = 'example/'
-	dmax = 200 #1e3
+	dmax = 18 * np.pi**2 * 1
 	if tag==0:
 		d0 = stored(evolve(m, zvir, mode = 0, dmax = dmax, v0 = v0), m, zvir, mode = 0)
 		d1 = stored(evolve(m, zvir, mode = 1, dmax = dmax, v0 = v0), m, zvir, mode = 1)
