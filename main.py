@@ -169,9 +169,9 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			Tb_V = Tb_old
 			Tb_old = max(TV, Tb_old)
 			Tdm_old = max(TV, Tdm_old)
-			#v_old = max(VV, v_old)
 			pV = [Tb_old, Tdm_old, v_old, nb, nold*nb, rhob_old, rhodm_old, z]
 			tcool = coolt(*pV, mode, *para)
+			v_old = max(VV, v_old)
 			tag1 = 1
 		if (count%10==0)or(t_cum>=tmax):
 			lt.append(t_cum)#[count] = t_cum
@@ -239,7 +239,7 @@ def readd(Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, dmax
 	d['m'] = M_T(d['TbV']/d['rat0'], zvir, dmax)
 	return d
 
-def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3):
+def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 1e-10, alpha = 3.):
 	m0 = (m1*m2)**0.5
 	lz = np.linspace(z1, z2, nzb)
 	out = []
@@ -249,14 +249,23 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 		mmax = Mup(z)*10
 		lm = np.logspace(np.log10(m1), np.log10(mmax), nmb)
 		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h, fac = fac)
-		tffV = 1/H(1/(1+z), Om, h) #tff(z, dmax)
+		tffV = tff(z, dmax) #1/H(1/(1+z), Om, h)
 		lT = [Tvir(m, z, dmax) for m in lm]
-		lv = [Vcir(m, z, dmax) for m in lm]
-		print(d['pV'][2])
-		pV = d['pV'][2:]
+		lvv = [Vcir(m, z, dmax) for m in lm]
+		pV = d['pV'][3:]
+		if mode!=0:
+			lv = np.zeros(nmb)
+			for i in range(nmb):
+				uth = (lT[i]*BOL/PROTON+lT[i]*BOL/(Mdm*GeV_to_mass))**0.5
+				#print(lT[i], lT[i], lvv[i], *pV[-3:-1], Mdm, sigma, d['para'][2], d['para'][6])
+				dvdt = bdmscool(lT[i], lT[i], lvv[i], *pV[-3:-1], Mdm, sigma, d['para'][2], d['para'][6])[2]
+				vf = max(lvv[i] + dvdt * tffV, uth*vmin)
+				lv[i] = (vf*lvv[i])**0.5
+		else:
+			lv = lvv
 		#pV = d['pV'][3:]
-		lt0 = np.array([coolt(T, T, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
-		#lt0 = np.array([coolt(T, T, v, *pV, mode, *d['para'])/tffV for T, v in zip(lT, lv)])
+		#lt0 = np.array([coolt(T, T, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
+		lt0 = np.array([coolt(T, T, v, *pV, mode, *d['para'])/tffV for T, v in zip(lT, lv)])
 		if np.max(lt0)<=0:
 			print('Heating!')
 			mth = np.nan
@@ -270,16 +279,21 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 			else:
 				rat_m = interp1d(np.log10(lt), np.log10(lm))
 				mth = 10**rat_m(np.log10(rat))
+		if mode!=0:
+			mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, 18*np.pi**2)**2/dmax**(2/3))
 		out.append(mth)
 		lxh2.append(d['X'][3][-1])
 		lxhd.append(d['X'][11][-1])
 	return [np.array(out), lz, lxh2, lxhd]
 
-def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin = 10, fac = 1e-3, rat = 1.0, ncore=4):
+def mth_stm(mth, z, v0, alpha = 3., dmax = 18*np.pi**2):
+	return mth * (1 + alpha*vbdm_z(z, v0)**2/Vcir(mth, z, dmax)**2)
+
+def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin = 10, fac = 1e-3, rat = 1.0, ncore=4, nmb = 100, alpha = 3.):
 	lm = np.logspace(m1, m2, nbin)
 	ls = np.logspace(s1, s2, nbin)
 	X, Y = np.meshgrid(lm, ls, indexing = 'ij')
-	mmax = Mup(17)*10
+	mmax = Mup(z)*10
 	lMh = np.zeros(X.shape)
 	lXH2 = np.zeros(X.shape)
 	lXHD = np.zeros(X.shape)
@@ -290,31 +304,8 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	def sess(pr0, pr1, j):
 		out = []
 		for i in range(pr0, pr1):
-			lm0 = np.logspace(2, np.log10(mmax), 100)
-			d = evolve(1e6, z, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, mode = 1, dmax = dmax, fac = fac)
-			#print(lm[i], ls[j]*1e-20)
-			tffV = 1/H(1/(1+z))
-			lT = [Tvir(m, z, dmax) for m in lm0]
-			lv = [Vcir(m, z, dmax) for m in lm0]
-			print(d['pV'][2])
-			pV = d['pV'][2:]
-			#pV = d['pV'][3:]
-			lt0 = np.array([coolt(T, T, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
-			#lt0 = np.array([coolt(T, T, v, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
-			if np.max(lt0)<=0:
-				print('Heating!', np.max(lt0))
-				mth = np.nan
-			else:
-				lt = lt0[lt0>0]
-				lm0 = lm0[lt0>0]
-				if np.min(np.log10(lt))>=np.log10(rat):
-					mth = np.max(lm0)
-				elif np.max(np.log10(lt))<=np.log10(rat):
-					mth = np.min(lm0)
-				else:
-					rat_m = interp1d(np.log10(lt), np.log10(lm0))
-					mth = 10**rat_m(np.log10(rat))
-			out.append([mth, d['X'][3][-1], d['X'][11][-1]])
+			d = Mth_z(z,z,1, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, dmax = dmax, rat = rat, fac = fac, nmb = nmb, mode = 1, alpha = alpha)
+			out.append([d[0][0], d[2][0], d[3][0]])
 		output.put((pr0, np.array(out).T))
 	for i in range(nbin):
 		output = manager.Queue()
@@ -336,13 +327,15 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 
 if __name__=="__main__":
 	tag = 0
-	v0 = 30
-	nbin = 32
+	v0 = 0.1
+	nbin = 4
 	ncore = 4
-	dmax = 18*np.pi**2 * 1
+	dmax = 18*np.pi**2 * 10
 	rat = 1.
 	fac = 1e-3
-	rep = '1-sigma_ns/'
+	alpha0 = 3.
+	alpha = 1.
+	rep = '10-sigma_ns/'
 	if not os.path.exists(rep):
 		os.makedirs(rep)
 
@@ -354,12 +347,14 @@ if __name__=="__main__":
 
 	#"""
 	if tag==0:
-		refMh = Mth_z(16, 17, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)[0][1]
+		d = Mth_z(17, 20, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)
+		refMh = d[0][0]
+		print('Mth at z = 20: {} 10^6 Msun'.format(d[0][1]/1e6))
 		refd = stored(evolve(1e6, 17, v0 = v0, fac = fac, mode = 0, dmax = dmax), 1e6, 17, 0)
 		xH2r = refd['X'][3][-1]
 		xHDr = refd['X'][11][-1]
 		totxt(rep+'ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
-		X, Y, Mh, XH2, XHD = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat)
+		X, Y, Mh, XH2, XHD = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat, alpha = alpha)
 		totxt(rep+'X_'+str(v0)+'.txt',X,0,0,0)
 		totxt(rep+'Y_'+str(v0)+'.txt',Y,0,0,0)
 		totxt(rep+'Mh_'+str(v0)+'.txt',Mh,0,0,0)
@@ -373,6 +368,7 @@ if __name__=="__main__":
 		XHD = np.array(retxt(rep+'XHD_'+str(v0)+'.txt',nbin,0,0))
 
 	refMh, xH2r, xHDr = retxt(rep+'ref.txt',1,0,0)[0]
+	refMh = mth_stm(refMh, 17, v0, alpha = alpha0)
 	print('Reference mass thresold: {} 10^6 Msun'.format(refMh/1e6))
 	print('Reference H2 abundance: {} * 10^-4'.format(xH2r*1e4))
 	print('Reference HD abundance: {} * 10^-3'.format(xHDr*1e3))
@@ -435,12 +431,13 @@ if __name__=="__main__":
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
-		lm_, lz_, lxh2_, lxhd_ = Mth_z(10, 100, 46, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac)
-		lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
+		lm_, lz_, lxh2_, lxhd_ = Mth_z(10, 100, 6, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha)
+		lm, lz, lxh2, lxhd = Mth_z(10, 100, 6, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac)
 		totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 		totxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',[lz_, lm_, lxh2_, lxhd_],0,0,0)
 	lz_, lm_, lxh2_, lxhd_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',4,0,0))
 	lz, lm, lxh2, lxhd = np.array(retxt(rep+'Mthz_CDM.txt',4,0,0))
+	lm = mth_stm(lm, lz, v0, alpha = alpha0)
 	plt.figure()
 	plt.plot(lz, lm, label='CDM')
 	plt.plot(lz_, lm_, '--', label='BDMS')
@@ -477,7 +474,7 @@ if __name__=="__main__":
 	
 	#"""
 	lls = ['-', '--', '-.', ':']*2
-	tag = 1
+	tag = 0
 	#rat = 10.
 	nz = 3
 	z1, z2 = 20, 100
@@ -485,14 +482,14 @@ if __name__=="__main__":
 	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'ref_z.txt', d0, 0, 0)
 
-	lv = np.logspace(-1, 3, 50)
+	lv = np.logspace(-1, 3, 5)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
 		d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 		totxt(rep+'ref_z.txt', d0, 0, 0)
 		out = []
 		for v in lv:
-			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac)
+			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac, alpha = alpha)
 			out.append(d)
 		lz = d[1]
 		lm = [[x[0][i] for x in out] for i in range(len(d[0]))]
@@ -513,7 +510,7 @@ if __name__=="__main__":
 	lxhd = np.array(retxt(rep+'xhd_v.txt',nz,0,0))
 	plt.figure()
 	a = [plt.plot(lv, lm[i], label=r'$z='+str(int(lz[i]*100)/100)+'$', ls = lls[i]) for i in range(nz)]
-	a = [plt.plot(lv, np.ones(len(lv))*mr[i], label=r'$z='+str(int(lz[i]*100)/100)+'$, CDM',color='k',ls=lls[i],lw=0.5) for i in range(nz)]
+	a = [plt.plot(lv, mth_stm(mr[i], 17, lv, alpha = alpha0), label=r'$z='+str(int(lz[i]*100)/100)+'$, CDM',color='k',ls=lls[i],lw=0.5) for i in range(nz)]
 	plt.legend()
 	plt.xlabel(r'$v_{\mathrm{bDM},0}\ [\mathrm{km\ s^{-1}}]$')
 	plt.ylabel(r'$M_{\mathrm{th}}\ [M_{\odot}]$')
