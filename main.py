@@ -43,7 +43,7 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 	else:
 		return -Tb_old/dTb_dt
 	
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1e-4, vmin = 1e-10, nmax = int(1e6)):
+def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1e-10, vmin = 1e-10, nmax = int(1e6)):
 	start = time.time()
 	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h)
 	print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
@@ -136,14 +136,14 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		t_cum += abund[1]
 		z = z_t(t_cum)
 		dlnrho_dt = Dlnrho(t_cum, t_cum + abund[1]/2.0, zvir, dmax)
-		if mode!=0:
+		uth = (Tb_old*BOL/PROTON+Tdm_old*BOL/(Mdm*GeV_to_mass))**0.5
+		if mode!=0 and (Tb_old>Tdm_old or v_old>vmin*uth):
 			dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, rhob_old, rhodm_old, Mdm, sigma, gamma, X)
 		dTb_dt = cool(Tb_old, nb, nold*nb, J_21, z, gamma, X, T0) + dTs_dt[1] + GammaC(z, Om, Ob, h = h, X = X, T0 = T0)*(T0*(1+z)-Tb_old)
 		if tag0==0:
 			dTb_dt += dlnrho_dt*(gamma-1)*Tb_old
 		dTdm_dt = dTs_dt[0] + dlnrho_dt*(gamma-1)*Tdm_old
 		dv_dt = dTs_dt[2] + dlnrho_dt*(gamma-1)*v_old
-		uth = (Tb_old*BOL/PROTON+Tdm_old*BOL/(Mdm*GeV_to_mass))**0.5
 		Tb_old = max(Tb_old + (dTb_dt + dTb_dt_old)*abund[1]/2.0, Tmin)
 		Tdm_old = max(Tdm_old + (dTdm_dt + dTdm_dt_old)*abund[1]/2.0, Tmin/1e10)
 		v_old = max(v_old + (dv_dt + dv_dt_old)*abund[1]/2.0, vmin*uth)
@@ -335,7 +335,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 if __name__=="__main__":
 	tag = 0
 	v0 = 0.1
-	nbin = 16
+	nbin = 32
 	ncore = 4
 	dmax = 18*np.pi**2 * 1
 	rat = 1.
@@ -374,14 +374,13 @@ if __name__=="__main__":
 	print('Reference mass thresold: {} 10^6 Msun'.format(refMh/1e6))
 	print('Reference H2 abundance: {} * 10^-4'.format(xH2r*1e4))
 	print('Reference HD abundance: {} * 10^-3'.format(xHDr*1e3))
-
+	#Mh = Mh*(Mh<Mup(17)) + Mup(17)*(Mh>=Mup(17))
 	plt.figure()
 	ctf = plt.contourf(X, Y, np.log10(Mh/1e6), 2*nbin, cmap=plt.cm.Blues)
 	for c in ctf.collections:
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
 	cb.set_label(r'$\log(M_{\mathrm{th}}\ [10^{6}\ M_{\odot}])$',size=12)
-	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 2*nbin), cmap=plt.cm.jet)
 	plt.contour(X, Y, np.log10(Mh/1e6), [np.log10(refMh/1e6)], colors='k')
 	print(np.min(Mh[Mh!=np.nan]/1e6))
 	plt.contour(X, Y, np.log10(Mh/1e6), [np.log10(Mup(17)/1e6)], colors='k', linestyles='--')
@@ -399,7 +398,6 @@ if __name__=="__main__":
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
 	cb.set_label(r'$x_{\mathrm{H_{2}}}\cdot 10^{4}$',size=12)
-	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 100), cmap=plt.cm.jet)
 	plt.contour(X, Y, XH2*1e4, [xH2r*1e4], colors='k')
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
@@ -415,7 +413,6 @@ if __name__=="__main__":
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
 	cb.set_label(r'$x_{\mathrm{HD}}\cdot 10^{3}$',size=12)
-	#plt.contourf(X, Y, -np.log10(Z), np.linspace(-3.4, -2, 100), cmap=plt.cm.jet)
 	plt.contour(X, Y, XHD*1e3, [xHDr*1e3], colors='k')
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
