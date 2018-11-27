@@ -109,7 +109,7 @@ def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.31
 	def func(y, a):
 		uth = (y[1]*BOL/PROTON+y[0]*BOL/(Mdm*GeV_to_mass))**0.5
 		if y[2]<vmin*uth:
-			v = 0.0
+			v = vmin*uth
 			dv = 0.0#-y[2]/a
 		else:
 			DH = drag(rhom(a, Om, h), y[2], y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)
