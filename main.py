@@ -11,7 +11,7 @@ x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
 			 [1.0, 5e-4, 2.5e-11] + \
 			 [1.0, 0, 0, 0, 0]
 
-def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_default, z00 = 1000, Om = 0.315, Ob = 0.048, h = 0.6774, vmin = 1e-10, T0 = 2.726):
+def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_default, z00 = 1000, Om = 0.315, Ob = 0.048, h = 0.6774, T0 = 2.726):
 	#0: XH, 1: XH+, 2: XH-, 3: XH2, 4: XH2+,
 	#5: Xe, 6: XHe, 7: XHe+, 8: XHe++, 
 	#9: XD, 10: XD+, 11: XHD,
@@ -21,7 +21,7 @@ def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_defaul
 		d0 = thermalH(z00, z0, v0, Mdm, sigma, Om, Ob, T0=T0, h=h)
 		d['Tb'] = d0['Tb'][-1]
 		d['Tdm'] = d0['Tdm'][-1]
-		d['vbdm'] = max(d0['v'][-1], vmin)
+		d['vbdm'] = d0['v'][-1]
 	else:
 		d['Tb'] = T_b(z0, T0=T0)
 		d['Tdm'] = T_dm(z0, Mdm, T0=T0)
@@ -32,10 +32,12 @@ def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_defaul
 def M_T(T, z, delta, Om = 0.315):
 	return (T/(delta*Om/(200*0.315))**(1/3)*10/(1+z)/190356.40337133306)**(3/2)*1e10
 
-def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, sigma, gamma, Om, Ob = 0.048, h = 0.6774, X = 0.76, J_21 = 0, T0 = 2.726):
+def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, sigma, gamma, Om, Ob = 0.048, h = 0.6774, X = 0.76, J_21 = 0, T0 = 2.726, vmin = 1e-10):
 	xh = 4*X/(1+3*X)
 	dTs_dt = [0]*3
 	if mode!=0:
+		uth = (Tb_old*BOL/PROTON+Tdm_old*BOL/(Mdm*GeV_to_mass))**0.5
+		v = max(v_old, uth*vmin)
 		dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, rhob_old, rhodm_old, Mdm, sigma, gamma, X)
 	dTb_dt = cool(Tb_old, nb, nold, J_21, z, gamma, X, T0) + dTs_dt[1]
 	if dTb_dt == 0:
@@ -78,7 +80,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		tag2 = 1
 	Tb_V = TV
 	pV = []
-	para = [Mdm, sigma, gamma, Om, Ob, h, X, J_21, T0]
+	para = [Mdm, sigma, gamma, Om, Ob, h, X, J_21, T0, vmin]
 	tcool = 0.0
 	tffV = 1/H(1/(1+zvir), Om, h) #tff(zvir, dmax)
 	#yy = np.zeros(Ns, dtype='float')
@@ -375,7 +377,7 @@ if __name__=="__main__":
 	print('Reference H2 abundance: {} * 10^-4'.format(xH2r*1e4))
 	print('Reference HD abundance: {} * 10^-3'.format(xHDr*1e3))
 	Mbd = Mup(17)*2
-	Mh = Mh*(Mh<Mbd) + Mbd*(Mh>=Mbd)
+	#Mh = Mh*(Mh<Mbd) + Mbd*(Mh>=Mbd)
 	plt.figure()
 	ctf = plt.contourf(X, Y, np.log10(Mh/1e6), 2*nbin, cmap=plt.cm.Blues)
 	for c in ctf.collections:
