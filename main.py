@@ -43,7 +43,7 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 	else:
 		return -Tb_old/dTb_dt
 	
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1e-10, vmin = 1e-10, nmax = int(1e6)):
+def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1e-4, vmin = 1e-10, nmax = int(1e6)):
 	start = time.time()
 	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h)
 	print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
@@ -334,7 +334,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 
 if __name__=="__main__":
 	tag = 0
-	v0 = 0.1
+	v0 = 30
 	nbin = 32
 	ncore = 4
 	dmax = 18*np.pi**2 * 1
@@ -374,7 +374,8 @@ if __name__=="__main__":
 	print('Reference mass thresold: {} 10^6 Msun'.format(refMh/1e6))
 	print('Reference H2 abundance: {} * 10^-4'.format(xH2r*1e4))
 	print('Reference HD abundance: {} * 10^-3'.format(xHDr*1e3))
-	#Mh = Mh*(Mh<Mup(17)) + Mup(17)*(Mh>=Mup(17))
+	Mbd = Mup(17)*2
+	Mh = Mh*(Mh<Mbd) + Mbd*(Mh>=Mbd)
 	plt.figure()
 	ctf = plt.contourf(X, Y, np.log10(Mh/1e6), 2*nbin, cmap=plt.cm.Blues)
 	for c in ctf.collections:
@@ -474,7 +475,7 @@ if __name__=="__main__":
 	
 	#"""
 	lls = ['-', '--', '-.', ':']*2
-	tag = 0
+	tag = 1
 	#rat = 10.
 	nz = 3
 	z1, z2 = 20, 100
