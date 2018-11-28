@@ -32,13 +32,15 @@ def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_defaul
 def M_T(T, z, delta, Om = 0.315):
 	return (T/(delta*Om/(200*0.315))**(1/3)*10/(1+z)/190356.40337133306)**(3/2)*1e10
 
+delta0 = 200.
+
 def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, sigma, gamma, Om, Ob = 0.048, h = 0.6774, X = 0.76, J_21 = 0, T0 = 2.726, vmin = 1e-10):
 	xh = 4*X/(1+3*X)
 	dTs_dt = [0]*3
 	if mode!=0:
 		uth = (Tb_old*BOL/PROTON+Tdm_old*BOL/(Mdm*GeV_to_mass))**0.5
 		v = max(v_old, uth*vmin)
-		dTs_dt = bdmscool(Tdm_old, Tb_old, v_old, rhob_old, rhodm_old, Mdm, sigma, gamma, X)
+		dTs_dt = bdmscool(Tdm_old, Tb_old, v, rhob_old, rhodm_old, Mdm, sigma, gamma, X)
 	dTb_dt = cool(Tb_old, nb, nold, J_21, z, gamma, X, T0) + dTs_dt[1]
 	if dTb_dt == 0:
 		return TZ(0)
@@ -73,8 +75,8 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 	t_cum, count, total = t0, 0, 0
 	tag0 = 0
 	tag1 = 0
-	TV = Tvir(Mh, zvir, dmax)
-	VV = Vcir(Mh, zvir, dmax)
+	TV = Tvir(Mh, zvir, delta0)
+	VV = Vcir(Mh, zvir, delta0)
 	tag2 = 0
 	if lTb[0]>TV:
 		tag2 = 1
@@ -111,8 +113,8 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			dt_T = dt0
 			if abs(dTb_dt_old*dt_T)>epsT*Tb_old and Tb_old>Tmin*10:
 				dt_T = epsT*Tb_old/abs(dTb_dt_old)
-				#if dt_T < dt0_ and Tb_old<=Tmin*100:
-				#	dt_T = dt0_
+				if dt_T < dt0_ and Tb_old<=Tmin*100:
+					dt_T = dt0_
 		if dt_T + t_cum>t1 and tagt==0:
 			dt_T = t1 - t_cum
 			tagt = 1
@@ -239,7 +241,7 @@ def readd(Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, dmax
 	d['m'] = M_T(d['TbV']/d['rat0'], zvir, dmax)
 	return d
 
-def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 1e-10, alpha = 3.):
+def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 1e-10, alpha = 3., sk = False):
 	m0 = (m1*m2)**0.5
 	lz = np.linspace(z1, z2, nzb)
 	out = []
@@ -249,23 +251,30 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 		mmax = Mup(z)*10
 		lm = np.logspace(np.log10(m1), np.log10(mmax), nmb)
 		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h, fac = fac)
-		tffV = tff(z, dmax) #1/H(1/(1+z), Om, h)
-		lT = [Tvir(m, z, dmax) for m in lm]
-		lvv = [Vcir(m, z, dmax) for m in lm]
-		pV = d['pV'][3:]
-		if mode!=0:
+		tffV = tff(z, dmax)
+		#tffV = 1/H(1/(1+z), Om, h)
+		lT = [Tvir(m, z, delta0) for m in lm]
+		if mode!=0 and sk:
+			pV = d['pV'][3:]
+			lvv = [Vcir(m, z, delta0) for m in lm]
 			lv = np.zeros(nmb)
 			for i in range(nmb):
 				uth = (lT[i]*BOL/PROTON+lT[i]*BOL/(Mdm*GeV_to_mass))**0.5
-				#print(lT[i], lT[i], lvv[i], *pV[-3:-1], Mdm, sigma, d['para'][2], d['para'][6])
 				dvdt = bdmscool(lT[i], lT[i], lvv[i], *pV[-3:-1], Mdm, sigma, d['para'][2], d['para'][6])[2]
 				vf = max(lvv[i] + dvdt * tffV, uth*vmin)
-				lv[i] = (vf*lvv[i])**0.5
+				lv[i] = 0.5 * ((vf*lvv[i])**0.5 + d['pV'][2])
+			lt0 = [coolt(T, T, v, *pV, mode, *d['para'])/tffV for T, v in zip(lT, lv)]
 		else:
-			lv = lvv
-		#pV = d['pV'][3:]
-		#lt0 = np.array([coolt(T, T, *pV, 1, *d['para'])/tffV for T, v in zip(lT, lv)])
-		lt0 = np.array([coolt(T, T, v, *pV, mode, *d['para'])/tffV for T, v in zip(lT, lv)])
+			pV = d['pV'][2:]
+			lt0 = [coolt(T, T, *pV, mode, *d['para'])/tffV for T in lT]
+		lt00 = np.array(lt0)
+		imin = lt0.index(np.min(lt00[lt00>0]))
+		if imin>0:
+			lt0 = np.array(lt0[:imin+1])
+			lm = lm[:imin+1]
+		else:
+			print('?')
+			return []
 		if np.max(lt0)<=0:
 			print('Heating!')
 			mth = np.nan
@@ -280,16 +289,16 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 				rat_m = interp1d(np.log10(lt), np.log10(lm))
 				mth = 10**rat_m(np.log10(rat))
 		if mode!=0:
-			mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, 18*np.pi**2)**2/dmax**(2/3)/10)
+			mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, delta0)**2/dmax**(2/3)/10)
 		out.append(mth)
 		lxh2.append(d['X'][3][-1])
 		lxhd.append(d['X'][11][-1])
 	return [np.array(out), lz, lxh2, lxhd]
 
-def mth_stm(mth, z, v0, alpha = 3., dmax = 18*np.pi**2):
+def mth_stm(mth, z, v0, alpha = 3., dmax = delta0):
 	return mth * (1 + alpha*vbdm_z(z, v0)**2/Vcir(mth, z, dmax)**2)
 
-def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin = 10, fac = 1e-3, rat = 1.0, ncore=4, nmb = 100, alpha = 3.):
+def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin = 10, fac = 1e-3, rat = 1.0, ncore=4, nmb = 100, alpha = 3., sk = False):
 	lm = np.logspace(m1, m2, nbin)
 	ls = np.logspace(s1, s2, nbin)
 	X, Y = np.meshgrid(lm, ls, indexing = 'ij')
@@ -304,7 +313,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	def sess(pr0, pr1, j):
 		out = []
 		for i in range(pr0, pr1):
-			d = Mth_z(z,z,1, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, dmax = dmax, rat = rat, fac = fac, nmb = nmb, mode = 1, alpha = alpha)
+			d = Mth_z(z,z,1, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, dmax = dmax, rat = rat, fac = fac, nmb = nmb, mode = 1, alpha = alpha, sk = sk)
 			out.append([d[0][0], d[2][0], d[3][0]])
 		output.put((pr0, np.array(out).T))
 	for i in range(nbin):
@@ -326,16 +335,17 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	return X, Y*1e-20, lMh, lXH2, lXHD
 
 if __name__=="__main__":
-	tag = 1
+	tag = 0
 	v0 = 0.1
-	nbin = 4
+	nbin = 32
 	ncore = 4
-	dmax = 18*np.pi**2 * 10
+	dmax = delta0 * 100
 	rat = 1.
 	fac = 1e-3
 	alpha0 = 3.
 	alpha = 1.
-	rep = '10-sigma_ns/'
+	sk = True
+	rep = '100-sigma/'
 	if not os.path.exists(rep):
 		os.makedirs(rep)
 
@@ -354,7 +364,7 @@ if __name__=="__main__":
 		xH2r = refd['X'][3][-1]
 		xHDr = refd['X'][11][-1]
 		totxt(rep+'ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
-		X, Y, Mh, XH2, XHD = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat, alpha = alpha)
+		X, Y, Mh, XH2, XHD = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat, alpha = alpha, sk = sk)
 		totxt(rep+'X_'+str(v0)+'.txt',X,0,0,0)
 		totxt(rep+'Y_'+str(v0)+'.txt',Y,0,0,0)
 		totxt(rep+'Mh_'+str(v0)+'.txt',Mh,0,0,0)
@@ -427,12 +437,12 @@ if __name__=="__main__":
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 1
+	tag = 0
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
-		lm_, lz_, lxh2_, lxhd_ = Mth_z(10, 100, 6, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha)
-		lm, lz, lxh2, lxhd = Mth_z(10, 100, 6, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac)
+		lm_, lz_, lxh2_, lxhd_ = Mth_z(10, 100, 31, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk)
+		lm, lz, lxh2, lxhd = Mth_z(10, 100, 31, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac)
 		totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 		totxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',[lz_, lm_, lxh2_, lxhd_],0,0,0)
 	lz_, lm_, lxh2_, lxhd_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',4,0,0))
@@ -482,14 +492,14 @@ if __name__=="__main__":
 	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'ref_z.txt', d0, 0, 0)
 
-	lv = np.logspace(-1, 3, 5)
+	lv = np.logspace(-1, 3, 41)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
 		d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 		totxt(rep+'ref_z.txt', d0, 0, 0)
 		out = []
 		for v in lv:
-			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac, alpha = alpha)
+			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk)
 			out.append(d)
 		lz = d[1]
 		lm = [[x[0][i] for x in out] for i in range(len(d[0]))]
