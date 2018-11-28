@@ -280,7 +280,7 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 				rat_m = interp1d(np.log10(lt), np.log10(lm))
 				mth = 10**rat_m(np.log10(rat))
 		if mode!=0:
-			mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, 18*np.pi**2)**2/dmax**(2/3))
+			mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, 18*np.pi**2)**2/dmax**(2/3)/10)
 		out.append(mth)
 		lxh2.append(d['X'][3][-1])
 		lxhd.append(d['X'][11][-1])
@@ -326,7 +326,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	return X, Y*1e-20, lMh, lXH2, lXHD
 
 if __name__=="__main__":
-	tag = 0
+	tag = 1
 	v0 = 0.1
 	nbin = 4
 	ncore = 4
@@ -427,7 +427,7 @@ if __name__=="__main__":
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 0
+	tag = 1
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
