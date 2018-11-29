@@ -75,15 +75,21 @@ def uthf(mb, mdm, Tb, Tdm):
 
 def drag(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
-	r = v/uth
-	A = (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/v**2 * (r>1e-5) + (2/np.pi)**0.5*r/(3*uth**2) * (r<=1e-5)
-	return rho*sigma*1e20/(mb+mdm) * A
+	if v**2<=0:
+		return 0
+	else:
+		r = v/uth
+		A = (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/v**2 * (r>1e-5) + (2/np.pi)**0.5*r/(3*uth**2) * (r<=1e-5)
+		return rho*sigma*1e20/(mb+mdm) * A
 
 def Q_IDMB(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20, gamma = 5/3):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
-	r = v/uth
+	r = max(v/uth, 0)
 	c = (Tdm-Tb)/uth**3 * ((2/np.pi)**0.5*np.exp(-r**2/2))
-	d = mdm/v * (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/BOL * (r>1e-5) + mdm/BOL * (2/np.pi)**0.5*r**2/(3*uth) * (r<=1e-5)
+	if v<=0:
+		d = 0
+	else:
+		d = mdm/v * (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/BOL * (r>1e-5) + mdm/BOL * (2/np.pi)**0.5*r**2/(3*uth) * (r<=1e-5)
 	out = mb*rho*sigma*1e20/(mdm+mb)**2 * (c + d)
 	return out*(gamma-1)
 
@@ -104,11 +110,14 @@ def bdmscool(Tdm, Tb, v, rhob, rhodm, Mdm, sigma, gamma, X):
 	dv = - (xh*DH + (1-xh)*DHe)
 	return [dTdm, dTb, dv]
 
-def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76, a1=1./119, a2=1./115, T0=2.726, nb = 100000, Tmin = 1e-4, vmin = 1e-10):
+def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76, a1=1./119, a2=1./115, T0=2.726, nb = 100000, vmin = 1e-20):
+	Mb = PROTON*4/(1+3*X)/GeV_to_mass*(Om-Ob)/Ob
+	Tmin = T_b(z1)/(1+Mb/Mdm)
+	#print(Tmin)
 	xh = 4*X/(1+3*X)
 	def func(y, a):
-		uth = (y[1]*BOL/PROTON+y[0]*BOL/(Mdm*GeV_to_mass))**0.5
-		if y[2]<vmin*uth:
+		uth = 0 #(y[1]*BOL/PROTON+y[0]*BOL/(Mdm*GeV_to_mass))**0.5
+		if y[2]<=vmin*uth:
 			v = vmin*uth
 			dv = 0.0#-y[2]/a
 		else:
@@ -116,12 +125,12 @@ def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.31
 			DHe = drag(rhom(a, Om, h), y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)
 			v = y[2]	
 			dv = -v/a - (xh*DH + (1-xh)*DHe)/(a*H(a, Om, h, OR))
-		if y[1]<Tmin: #y[1]<=y[0]:
-			dTdm = 0.0#-2*y[0]/a
-			dTb = 0.0#-2*y[1]/a
-		elif y[1]<=y[0] and y[2]<=vmin*uth:
+		if y[1]<=y[0] and y[2]<=vmin*uth:
 			dTdm = -2*y[0]/a
 			dTb = -2*y[1]/a + GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1])/ (a*H(a, Om, h, OR))
+		elif y[1]<=Tmin:
+			dTb = 0
+			dTdm = 0
 		else:
 			rhob = Ob/Om * rhom(a, Om, h)
 			QH = Q_IDMB(rhob, v, y[0], y[1], Mdm*GeV_to_mass, PROTON, sigma)*xh
@@ -146,7 +155,7 @@ def thermalH(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.31
 	d['lz'] = lz
 	d['la'] = la
 	d['Tb'] = sol[1] * (sol[1]>Tmin) + Tmin * (sol[1]<=Tmin)
-	d['Tdm'] = sol[0] * (sol[0]>Tmin/1e10) + Tmin/1e10 * (sol[0]<=Tmin/1e10)
+	d['Tdm'] = sol[0] #* (sol[0]>Tmin/1e10) + Tmin/1e10 * (sol[0]<=Tmin/1e10)
 	d['v'] = sol[2]
 	d['u'] = uthf(PROTON, Mdm*GeV_to_mass, d['Tb'], d['Tdm'])
 	return d
