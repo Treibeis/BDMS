@@ -48,10 +48,10 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 	else:
 		return -Tb_old/dTb_dt
 	
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1e-10, vmin = 0.0, nmax = int(1e6)):
+def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1., vmin = 0.0, nmax = int(1e6)):
 	start = time.time()
 	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h, vmin = vmin)
-	print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
+	#print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
 	xh = 4.0*X/(1.0+3.0*X)
 	xhe, xd, xli = 1-xh, D, Li
 	refa = np.array([xh]*6+[xhe]*3+[xd]*3+[xli]*5)
@@ -151,7 +151,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		dTdm_dt = dTs_dt[0] + dlnrho_dt*(gamma-1)*Tdm_old
 		dv_dt = dTs_dt[2] + dlnrho_dt*(gamma-1)*v_old
 		Tb_old = max(Tb_old + (dTb_dt + dTb_dt_old)*abund[1]/2.0, Tmin)
-		Tdm_old = max(Tdm_old + (dTdm_dt + dTdm_dt_old)*abund[1]/2.0, Tmin/1e10)
+		Tdm_old = max(Tdm_old + (dTdm_dt + dTdm_dt_old)*abund[1]/2.0, 0.0)
 		v_old = max(v_old + (dv_dt + dv_dt_old)*abund[1]/2.0, vmin*uth)
 		dTb_dt_old = dTb_dt
 		dTdm_dt_old = dTdm_dt
@@ -256,7 +256,8 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 	lvr = []
 	for z in lz:
 		mmax = Mup(z)*10
-		lm = np.logspace(np.log10(m1), np.log10(mmax), nmb)
+		mmin = M_T(200, z, delta0, Om)
+		lm = np.logspace(np.log10(mmin), np.log10(mmax), nmb)
 		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h, fac = fac)
 		tffV = tff(z, dmax)
 		#tffV = 1/H(1/(1+z), Om, h)
@@ -275,28 +276,34 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 			pV = d['pV'][2:]
 			lt0 = [coolt(T, T, *pV, mode, *d['para'])/tffV for T in lT]
 		lt00 = np.array(lt0)
-		imin = lt0.index(np.min(lt00[lt00>0]))
-		if imin>0:
-			lt0 = np.array(lt0[:imin+1])
-			lm = lm[:imin+1]
-		else:
-			print('?')
+		ltt0 = lt00[lt00>0]
+		if ltt0 is []:
+			print(Mdm, sigma, 'Heating!')
 			return []
-		if np.max(lt0)<=0:
-			print('Heating!')
-			mth = np.nan
 		else:
-			lt = lt0[lt0>0]
-			lm = lm[lt0>0]
-			if np.min(np.log10(lt))>=np.log10(rat):
-				mth = np.max(lm)
-			elif np.max(np.log10(lt))<=np.log10(rat):
-				mth = np.min(lm)
+			imax = lt0.index(np.max(lt00))
+			if imax<nmb-1:
+				lt00 = np.array(lt0[imax:])
+				ltt0 = lt00[lt00>0]
+			imin = lt0.index(np.min(lt00))
+			if imin==0:
+				print(Mdm, sigma, 'lower bound')
+				mth = mmin
 			else:
-				rat_m = interp1d(np.log10(lt), np.log10(lm))
-				mth = 10**rat_m(np.log10(rat))
+				lt0 = np.array(lt0[:imin+1])
+				lm = lm[:imin+1]
+				lt = lt0[lt0>0]
+				lm = lm[lt0>0]
+				if np.min(np.log10(lt))>=np.log10(rat):
+					mth = np.max(lm)
+				elif np.max(np.log10(lt))<=np.log10(rat):
+					mth = np.min(lm)
+				else:
+					rat_m = interp1d(np.log10(lt), np.log10(lm))
+					mth = 10**rat_m(np.log10(rat))
 		if mode!=0:
 			mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, delta0)**2/dmax**(2/3)/10)
+		print(Mdm, sigma, mth/1e6)
 		out.append(mth)
 		lxh2.append(d['pV_pri'][0])
 		lxhd.append(d['pV_pri'][1])
@@ -351,7 +358,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 17, dmax = 200, nbin 
 	return X, Y*1e-20, lMh, lXH2, lXHD, lXe, lTb, lvr
 
 if __name__=="__main__":
-	tag = 0
+	tag = 1
 	v0 = 0
 	nbin = 24
 	ncore = 4
@@ -360,9 +367,9 @@ if __name__=="__main__":
 	fac = 1e-3
 	alpha0 = 3.
 	alpha = 1.
-	#sk = False
-	sk = True
-	rep = '100-sigma/'
+	sk = False
+	#sk = True
+	rep = '100-sigma_ns/'
 	if not os.path.exists(rep):
 		os.makedirs(rep)
 
@@ -487,12 +494,12 @@ if __name__=="__main__":
 	plt.savefig(rep+'TbMap_v0_'+str(v0)+'.pdf')
 
 	plt.figure()
-	ctf = plt.contourf(X, Y, np.log10(Vr/1e5), 2*nbin, cmap=plt.cm.Blues)
+	ctf = plt.contourf(X, Y, Vr/1e5, 2*nbin, cmap=plt.cm.Blues)
 	for c in ctf.collections:
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
-	cb.set_label(r'$\log(v_{\mathrm{bDM,V}}\ [\mathrm{km\ s^{-1}}])$',size=12)
-	plt.contour(X, Y, np.log10(Vr/1e5), [np.log10(vrr/1e5)], colors='k')
+	cb.set_label(r'$v_{\mathrm{bDM,V}}\ [\mathrm{km\ s^{-1}}]$',size=12)
+	plt.contour(X, Y, Vr/1e5, [vrr/1e5], colors='k')
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
@@ -507,16 +514,16 @@ if __name__=="__main__":
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 0
+	tag = 1
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
 		d_ = Mth_z(10, 100, 31, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk)
 		d = Mth_z(10, 100, 31, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac)
-		totxt(rep+'Mthz_CDM.txt',d,0,0,0)
+		totxt(rep+'Mthz_CDM_'+str(v0)+'.txt',d,0,0,0)
 		totxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',d_,0,0,0)
 	lm_, lz_, lxh2_, lxhd_, lxe_, lTb_, lvr_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',7,0,0))
-	lm, lz, lxh2, lxhd, lxe, lTb, lvr = np.array(retxt(rep+'Mthz_CDM.txt',7,0,0))
+	lm, lz, lxh2, lxhd, lxe, lTb, lvr = np.array(retxt(rep+'Mthz_CDM_'+str(v0)+'.txt',7,0,0))
 	lm = mth_stm(lm, lz, v0, alpha = alpha0)
 	plt.figure()
 	plt.plot(lz, lm, label='CDM')
@@ -576,7 +583,7 @@ if __name__=="__main__":
 	plt.xlabel(r'$z_{\mathrm{vir}}$')
 	plt.ylabel(r'$v_{\mathrm{bDM,V}}\ [\mathrm{km\ s^{-1}}]$')
 	plt.xscale('log')
-	plt.yscale('log')
+	#plt.yscale('log')
 	plt.tight_layout()
 	plt.savefig(rep+'Vr_z_'+str(v0)+'.pdf')
 	#plt.show()
@@ -592,7 +599,7 @@ if __name__=="__main__":
 	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'ref_z.txt', d0, 0, 0)
 
-	lv = np.logspace(-1, 3, 41)
+	lv = np.logspace(-1, 3, 101)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
 		d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
