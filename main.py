@@ -382,8 +382,11 @@ if __name__=="__main__":
 	#"""
 	if tag==0:
 		d = Mth_z(17, 20, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)
-		print('Mth at z = 20: {} 10^6 Msun'.format(d[0][1]/1e6))
-		totxt(rep+'ref.txt', np.array(d).T, 0,0,0)
+		d_ = Mth_z(17, 20, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat)
+		print('Mth at z = 20: {} 10^6 Msun (CDM)'.format(d[0][1]/1e6))
+		print('Mth at z = 20: {} 10^6 Msun (BDMS)'.format(d_[0][1]/1e6))
+		totxt(rep+'ref_'+str(v0)+'.txt', np.array(d).T, 0,0,0)
+		totxt(rep+'default_'+str(v0)+'.txt', np.array(d_).T,0,0,0)
 		X, Y, Mh, XH2, XHD, Xe, Tb, Vr = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat, alpha = alpha, sk = sk)
 		totxt(rep+'X_'+str(v0)+'.txt',X,0,0,0)
 		totxt(rep+'Y_'+str(v0)+'.txt',Y,0,0,0)
@@ -514,7 +517,7 @@ if __name__=="__main__":
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 1
+	tag = 0
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
