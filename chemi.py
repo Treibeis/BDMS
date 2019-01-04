@@ -5,8 +5,9 @@ kB = 1.3806e-16
 def xh(X = 0.76):
 	return 4.0*X/(1.0+3.0*X)
 
-def rates(J_21, T, n):
-	k = np.zeros(34+10+2+1,dtype='float')
+def rates(J_21, T, n, z, T0):
+	k = np.zeros(34+10+2+1+3,dtype='float')
+	Tcmb = T0*(1+z)
 	tt = T**0.5
 	t5fac = 1.0/(1.0+(T/1.e5)**0.5)
 	logT = np.log10(T)
@@ -151,9 +152,19 @@ def rates(J_21, T, n):
 	k[37]=k[37]*S2 + (1.9e-14*T**-0.34+2.0e-16*T**0.18*np.exp(-T/5100.0))*(1.0-S2)
 	if k[35]<=0:
 		k[35] = 0.0
+
+	# CMB (GP98)
+	k[47] = 0 # 2.41e15*Tcmb**1.5 * np.exp(-39472/Tcmb)*8.76e-11*(1+z)**-0.58 # H + gamma = H+ + e-
+	k[48] = 1.1e-1*Tcmb**2.13* np.exp(-8823/Tcmb) # H- + gamma = H + e-
+	k[49] = 20*Tcmb**1.59* np.exp(-82000/Tcmb) # H2+ + gamma = H + H+
+
+	#k[51] = 1.3e3*Tcmb**1.45*np.exp(-60500/Tcmb) # Li + gamma = Li+ + e-
+	#k[52] = 1.8e2*Tcmb**1.4*np.exp(-8100/Tcmb) # Li- + gamma = Li + e-
+	#k[53] = 8.3e4*Tcmb**0.3*np.exp(-29000/Tcmb) # LiH + gamma = Li + H
+	#k[54] = 7e2*np.exp(-1900/Tcmb) # LiH+ + gamma = Li+ + H
 	return k
 
-def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax = 100):
+def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax = 100, z  =5, T0 = 2.726):
 	total = 0
 	out = np.zeros(Ns,dtype='float')
 	dt_cum = 0.0
@@ -161,16 +172,16 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax
 	Cr, Ds = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
 	ny = nin
 	while dt_cum<dt0:
-		k = rates(J_21, T, ny)
-		Cr[5]=k[21]*ny[0]+k[22]*ny[6]+k[23]*ny[7]+(k[0]*ny[0]+k[1]*ny[6]+k[2]*ny[7])*ny[5]
+		k = rates(J_21, T, ny, z, T0)
+		Cr[5]=(k[21]+k[47])*ny[0]+k[22]*ny[6]+k[23]*ny[7]+(k[0]*ny[0]+k[1]*ny[6]+k[2]*ny[7])*ny[5] + k[48]*ny[2]
 		Ds[5]=k[3]*ny[1]+k[4]*ny[7]+k[5]*ny[8]
 		if (dt*abs(Cr[5]-Ds[5]*ny[5])>epsH*abs(ny[5])) and (ny[5]>0) and dt>dt0/nmax:
 			dt = dt/2.0 #epsH*ny[5]/abs(Cr[5]-Ds[5]*ny[5])#
 			continue
-		if ny[5]<=1e-4*xnh and T<2e4:
-			for i in [3, 11]:
-				if (dt*abs(Cr0[i]-Ds0[i]*ny[i])>epsH*abs(ny[i])) and (ny[i]/xnh>1e-10):
-					dt = max(epsH*abs(ny[i]/(Cr0[i]-Ds0[i]*ny[i])),dt0/nmax) #dt/2.0
+		#if ny[5]<=1e-4*xnh and T<2e4:
+			#for i in [3, 11]:
+			#	if (dt*abs(Cr0[i]-Ds0[i]*ny[i])>epsH*abs(ny[i])) and (ny[i]/xnh>1e-10):
+			#		dt = max(epsH*abs(ny[i]/(Cr0[i]-Ds0[i]*ny[i])),dt0/nmax) #dt/2.0
 		if dt>1.e5*3.14e7:
 			dt = 1.e5*3.14e7
 		if dt + dt_cum>dt0:
@@ -182,11 +193,11 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax
 		Ds[5]=k[3]*ny[1]+k[4]*ny[7]+k[5]*ny[8]
 		ny[5]=(ny[5]+Cr[5]*dt)/(1.e0+Ds[5]*dt)
 
-		Cr[0]=k[3]*ny[1]*ny[5];
-		Ds[0]=k[0]*ny[5]+k[21];
+		Cr[0]=k[3]*ny[1]*ny[5] + k[48]*ny[2] + k[49]*ny[4];
+		Ds[0]=k[0]*ny[5]+k[21]+k[47];
 		ny[0]=(ny[0]+Cr[0]*dt)/(1.e0+Ds[0]*dt);
 
-		Cr[1]=k[0]*ny[5]*ny[0] +k[21]*ny[0]
+		Cr[1]=k[0]*ny[5]*ny[0] + (k[21]+k[47])*ny[0] + k[49]*ny[4];
 		Ds[1]=k[3]*ny[5];
 		ny[1]=(ny[1]+Cr[1]*dt)/(1.e0+Ds[1]*dt);
 
@@ -203,7 +214,7 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax
 		ny[8]=(ny[8]+Cr[8]*dt)/(1.e0+Ds[8]*dt);
 #/**** calculate equilibrium abundance for H- *********************/
 		XNUM1=(k[8]*ny[0] + k[13]*ny[3])*ny[5];
-		XDENOM1=(k[9]+k[19])*ny[0]+(k[12]+k[20])*ny[1]+k[18]*ny[5]+ k[24]# +k[11]*ny[4];
+		XDENOM1=(k[9]+k[19])*ny[0]+(k[12]+k[20])*ny[1]+k[18]*ny[5]+ k[24] + k[48]# +k[11]*ny[4];
 		#print(XNUM1, XDENOM1)
 		if XDENOM1>1e-52:
 			ny[2]=XNUM1/XDENOM1
@@ -211,7 +222,7 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax
 		#	print('Weird production of H-.')
 #/**** calculate equilibrium abundance for H2+ ********************/
 		XNUM2=(k[6]*ny[0] + k[16]*ny[3]+k[20]*ny[2])*ny[1] +k[26]*ny[3];
-		XDENOM2=k[7]*ny[0]+k[10]*ny[5]+k[11]*ny[2]+k[25];
+		XDENOM2=k[7]*ny[0]+k[10]*ny[5]+k[11]*ny[2]+k[25] + k[49];
 		if XDENOM2>1e-52:
 			ny[4]=XNUM2/XDENOM2
 		#else:
@@ -246,7 +257,7 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax
 			ny[0]=0.e0;
 
 		XNUM1=(k[8]*ny[0] + k[13]*ny[3])*ny[5];
-		XDENOM1=(k[9]+k[19])*ny[0]+(k[12]+k[20])*ny[1]+k[18]*ny[5]+ k[24]# +k[11]*ny[4];
+		XDENOM1=(k[9]+k[19])*ny[0]+(k[12]+k[20])*ny[1]+k[18]*ny[5]+ k[24] + k[48]# +k[11]*ny[4];
 		ny[2]=XNUM1/XDENOM1;
 
 		for i in range(9):
