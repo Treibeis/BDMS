@@ -308,6 +308,6 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, nmax = 100, z 
 		dt = dt0
 		total += 1
 	tform, tdest = 0.0, 0.0
-	return [ny, dt_cum, tform, tdest, total, Cr, Ds]
+	return [ny, dt_cum, total] #, tform, tdest, Cr, Ds]
 
 
