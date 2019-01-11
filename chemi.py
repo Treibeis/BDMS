@@ -5,15 +5,15 @@ kB = 1.3806e-16
 def xh(X = 0.76):
 	return 4.0*X/(1.0+3.0*X)
 
-def rates(J_21, T, n, z, T0):
+def rates(J_21, T, nh, nh2, z, T0):
 	k = np.zeros(34+10+2+1+3,dtype='float')
 	Tcmb = T0*(1+z)
 	tt = T**0.5
 	t5fac = 1.0/(1.0+(T/1.e5)**0.5)
 	logT = np.log10(T)
-	nh = n[0]+n[1]+n[2]+2.0*(n[3]+n[4])
+	#nh = n[0]+n[1]+n[2]+2.0*(n[3]+n[4])
 	LJ = 4.8e19*(T/nh)**0.5
-	NH2 = n[3]*LJ
+	NH2 = nh2*LJ
 	# Recombination: Hep from Black (1981, MNRAS 197, 553) Hp and Hepp from Cen (1992, ApJS 78, 341)
 	if T>5e3 or 1: 
 		k5a = 1.5e-10*T**-0.6353 
@@ -133,7 +133,7 @@ def rates(J_21, T, n, z, T0):
 	k[32]=2.1e-9 # D+ + H2 = H+ + HD
 	k[33]=1.e-9*np.e**(-464.0/T) # HD + H+ = H2 + D+
 
-	k[34]=1.036e-11/((T/107.7)**0.5*(1+(T/107.7)**0.5)**0.612*(1+(T/1.177e7)**0.5)**1.388)
+	k[34]=1.036e-11/((T/107.7)**0.5 * (1+(T/107.7)**0.5)**0.612 * (1+(T/1.177e7)**0.5)**1.388)
 	# Li+ + e- = Li + hnu
 	k[35]=6.3e-6*T**-0.5-7.6e-9+2.6e-10*T**0.5+2.7e-14*T # Li- + H+ = Li + H
 	k[36]=6.1e-17*T**0.58*np.exp(-T/17200) # Li + e- = Li- + hnu
@@ -164,7 +164,8 @@ def rates(J_21, T, n, z, T0):
 	#k[54] = 7e2*np.exp(-1900/Tcmb) # LiH+ + gamma = Li+ + H
 	return k
 
-def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax = 100, z  =5, T0 = 2.726):
+#def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax = 100, z  =5, T0 = 2.726):
+def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, nmax = 100, z  =5, T0 = 2.726):
 	total = 0
 	out = np.zeros(Ns,dtype='float')
 	dt_cum = 0.0
@@ -172,7 +173,7 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax
 	Cr, Ds = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
 	ny = nin
 	while dt_cum<dt0:
-		k = rates(J_21, T, ny, z, T0)
+		k = rates(J_21, T, xnh, nin[3], z, T0)
 		Cr[5]=(k[21]+k[47])*ny[0]+k[22]*ny[6]+k[23]*ny[7]+(k[0]*ny[0]+k[1]*ny[6]+k[2]*ny[7])*ny[5] + k[48]*ny[2]
 		Ds[5]=k[3]*ny[1]+k[4]*ny[7]+k[5]*ny[8]
 		if (dt*abs(Cr[5]-Ds[5]*ny[5])>epsH*abs(ny[5])) and (ny[5]>0) and dt>dt0/nmax:

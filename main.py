@@ -1,7 +1,9 @@
 from cosmology import *
 from bdms import *
 from radcool import *
-from chemi import *
+#from chemi import *
+from cheminet import *
+from txt import *
 import os
 import multiprocessing as mp
 import time
@@ -127,14 +129,15 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			tagt = 1
 		if dt_T + t_cum>tmax:
 			dt_T = tmax - t_cum
-		if count==0:
-			Cr0, Ds0 = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
-			abund0 = chemistry1(max(Tb_old,10*Tmin), nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
-			Cr0, Ds0 = abund0[5], abund0[6]
-		else:
-			Cr0, Ds0 = abund[5], abund[6]
+		#if count==0:
+		#	Cr0, Ds0 = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
+		#	abund0 = chemistry1(max(Tb_old,10*Tmin), nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
+		#	Cr0, Ds0 = abund0[5], abund0[6]
+		#else:
+		#	Cr0, Ds0 = abund[5], abund[6]
 		nold = yy * refa
-		abund = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
+		#abund = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
+		abund = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, z = z, T0 = T0)
 		nold = abund[0]/nb
 		for x in range(Ns):
 			if refa[x]!=0:
@@ -166,7 +169,8 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		rhodm_old = rhodm_z(z)
 		nb = rhob_old/mgas
 		#print(z, nb, mgas)
-		total += abund[4]
+		#total += abund[4]
+		total += abund[2]
 		count += 1
 		if tag2==1:
 			if Tb_old<TV:
@@ -219,6 +223,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 	end = time.time()
 	#print(t_cum-t1)
 	#print('Time taken: {} s'.format(end-start))
+	print(num, total)
 	return d
 
 Mup = lambda z: 2.5e7*((1+z)/10)**-1.5
@@ -369,7 +374,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 20, dmax = 200, nbin 
 
 if __name__=="__main__":
 	tag = 1
-	v0 = 60
+	v0 = 24
 	nbin = 28
 	ncore = 4
 	dmax = delta0 * 100
@@ -390,7 +395,7 @@ if __name__=="__main__":
 	#xHDr = refd['X'][11][-1]
 	#totxt(rep+'ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
 
-	#"""
+	"""
 	if tag==0:
 		d = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)
 		d_ = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat)
@@ -527,14 +532,14 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep+'VrMap_v0_'+str(v0)+'.pdf')
 	plt.close()
-	#"""
+	"""
 
 	#"""
 
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 1
+	tag = 0
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
@@ -623,7 +628,7 @@ if __name__=="__main__":
 	#plt.show()
 	#"""
 	
-	#"""
+	"""
 	lls = ['-', '--', '-.', ':']*2
 	tag = 1
 	#rat = 10.
@@ -774,13 +779,13 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep+'Vr_v.pdf')
 	plt.close()
-	#"""
+	"""
 
 	#"""
-	tag = 1
+	tag = 0
 	m = 1e6
 	zvir = 20
-	v0 = 15
+	v0 = 24
 	rep0 = 'example/'
 	#dmax = delta0 #18 * np.pi**2 * 1
 	if tag==0:
@@ -865,7 +870,7 @@ if __name__=="__main__":
 	plt.yscale('log')
 	#plt.ylim(1e-5, 1e-3)
 	plt.tight_layout()
-	plt.savefig(rep0+'Example_X_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'.pdf')
+	plt.savefig(rep0+'Example_X_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
 	#plt.show()
 	#"""
