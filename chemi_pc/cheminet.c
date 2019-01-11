@@ -21,7 +21,9 @@ void chemsl(double * nin, double * xl, double * nout, double T, double dt0, doub
 	rates(T, xnh, k, J_21, z, T0);
 	while (dt_cum<dt0){
 		dt = dt0;
-		delta_x = 0.e0;
+		Cr[5]=(k[21]+k[47])*ny[0]+k[22]*ny[6]+k[23]*ny[7]+(k[0]*ny[0]+k[1]*ny[6]+k[2]*ny[7])*ny[5] + k[48]*ny[2];
+		Ds[5]=k[3]*ny[1]+k[4]*ny[7]+k[5]*ny[8];
+		delta_x = epsH*ny[5]/fabs(Cr[5]-Ds[5]*ny[5]);
 		while (dt>=delta_x){
 			Cr[5]=(k[21]+k[47])*ny[0]+k[22]*ny[6]+k[23]*ny[7]+(k[0]*ny[0]+k[1]*ny[6]+k[2]*ny[7])*ny[5] + k[48]*ny[2];
 			Ds[5]=k[3]*ny[1]+k[4]*ny[7]+k[5]*ny[8];
