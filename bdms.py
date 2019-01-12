@@ -7,13 +7,26 @@ from scipy.interpolate import interp1d
 z_t = lambda x: ZT(np.log10(x/1e9/YR))
 
 foralpha = lambda x: (x-np.sin(x))/(2.*np.pi)
+fordelta = lambda alpha: 9.*(alpha-np.sin(alpha))**2. / (2.*(1.-np.cos(alpha))**3)
 
-def delta(z, zvir, dmax = 200.):
+lx = np.linspace(0, 2*np.pi, 10000)
+lal = foralpha(lx)
+alpha_ap = interp1d([x for x in lal]+[1.0], [x for x in lx]+[2*np.pi])
+
+#alpha_ap = lambda x: 2*(np.arcsin(2*x-1)+np.pi/2)
+
+def delta_(z, zvir, dmax = 200.):
 	f0 = (1.+zvir)/(1.+z)
 	f = lambda x: foralpha(x)-f0**1.5
 	a0 = np.pi
 	alpha = fsolve(f, a0)[0]
-	d = 9.*(alpha-np.sin(alpha))**2. / (2.*(1.-np.cos(alpha))**3)
+	d = fordelta(alpha)
+	return min(d, dmax)
+
+def delta(z, zvir, dmax = 200.):
+	f0 = (1.+zvir)/(1.+z) * (zvir<=z) + 1.0 * (zvir>z)
+	alpha = alpha_ap(f0**1.5)
+	d = fordelta(alpha)
 	return min(d, dmax)
 
 #def delta(z, zvir, dmax = 200.):

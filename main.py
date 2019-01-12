@@ -1,8 +1,8 @@
 from cosmology import *
 from bdms import *
 from radcool import *
-#from chemi import *
-from cheminet import *
+import chemi as chemi1
+import cheminet as chemi2
 from txt import *
 import os
 import multiprocessing as mp
@@ -32,6 +32,8 @@ def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_defaul
 	d['X']  = x0
 	return d
 
+init = initial()
+
 def M_T(T, z, delta, Om = 0.315):
 	return (T/(delta*Om/(200*0.315))**(1/3)*10/(1+z)/190356.40337133306)**(3/2)*1e10
 
@@ -54,9 +56,8 @@ def GammaC0(over, xe):
 	logG = np.log10(over) * 1.115724778945266 -18.31281413734767
 	return 10**logG * xe
 
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1., vmin = 0.0, nmax = int(1e6)):
+def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1., vmin = 0.0, nmax = int(1e6), init =init):
 	start = time.time()
-	init = initial(z0, v0, mode, Mdm, sigma, T0=T0, Om=Om, Ob=Ob, h=h, vmin = vmin)
 	#print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
 	xh = 4.0*X/(1.0+3.0*X)
 	xhe, xd, xli = 1-xh, D, Li
@@ -137,7 +138,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 		#	Cr0, Ds0 = abund[5], abund[6]
 		nold = yy * refa
 		#abund = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
-		abund = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, z = z, T0 = T0)
+		abund = chemi2.chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, z = z, T0 = T0)
 		nold = abund[0]/nb
 		for x in range(Ns):
 			if refa[x]!=0:
@@ -223,7 +224,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 	end = time.time()
 	#print(t_cum-t1)
 	#print('Time taken: {} s'.format(end-start))
-	print(num, total)
+	print(count, total)
 	return d
 
 Mup = lambda z: 2.5e7*((1+z)/10)**-1.5
@@ -255,7 +256,7 @@ def readd(Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, dmax
 	d['m'] = M_T(d['TbV']/d['rat0'], zvir, dmax)
 	return d
 
-def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 0.0, alpha = 3., sk = False):
+def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 0.0, alpha = 3., sk = False, init = init):
 	m0 = (m1*m2)**0.5
 	#lz = np.linspace(z1, z2, nzb)
 	lz = np.logspace(np.log10(z1), np.log10(z2), nzb)
@@ -269,7 +270,7 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 		mmax = Mup(z)*10
 		mmin = M_T(200, z, delta0, Om)
 		lm = np.logspace(np.log10(mmin), np.log10(mmax), nmb)
-		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h, fac = fac)
+		d = evolve(m0, z, z0, v0, mode, Mdm = Mdm, sigma = sigma, dmax = dmax, Om = Om, h = h, fac = fac, init = init)
 		tffV = tff(z, dmax)
 		#tffV = 1/H(1/(1+z), Om, h)
 		#lT = [Tvir(m, z, delta0) for m in lm]
@@ -348,7 +349,8 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 20, dmax = 200, nbin 
 	def sess(pr0, pr1, j):
 		out = []
 		for i in range(pr0, pr1):
-			d = Mth_z(z,z,1, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, dmax = dmax, rat = rat, fac = fac, nmb = nmb, mode = 1, alpha = alpha, sk = sk)
+			init = initial(Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, mode = 1)
+			d = Mth_z(z,z,1, Mdm = lm[i], sigma = ls[j]*1e-20, v0 = v0, dmax = dmax, rat = rat, fac = fac, nmb = nmb, mode = 1, alpha = alpha, sk = sk, init = init)
 			out.append([x[0] for x in d])
 		output.put((pr0, np.array(out).T))
 	for i in range(nbin):
@@ -395,7 +397,7 @@ if __name__=="__main__":
 	#xHDr = refd['X'][11][-1]
 	#totxt(rep+'ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
 
-	"""
+	#"""
 	if tag==0:
 		d = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)
 		d_ = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat)
@@ -444,6 +446,7 @@ if __name__=="__main__":
 	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)], colors='k')
 	print(np.min(Mh[Mh!=np.nan]))
 	plt.contour(X, Y, np.log10(Mh), [np.log10(Mup(zvir))], colors='k', linestyles='--')
+	plt.contour(X, Y, np.log10(Mh), [0.99+np.log10(Mup(zvir))], colors='k', linestyles='-.')
 	plt.plot([0.3], [8e-20], '*', color='purple')
 	plt.xscale('log')
 	plt.yscale('log')
@@ -532,19 +535,21 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep+'VrMap_v0_'+str(v0)+'.pdf')
 	plt.close()
-	"""
+	#"""
 
 	#"""
 
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 0
+	tag = 1
+	init0 = initial(v0 = v0, mode = 0)
+	init1 = initial(v0 = v0, mode = 1)
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
-		d_ = Mth_z(10, 100, 31, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk)
-		d = Mth_z(10, 100, 31, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac)
+		d_ = Mth_z(10, 100, 31, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = init1)
+		d = Mth_z(10, 100, 31, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = init0)
 		totxt(rep+'Mthz_CDM_'+str(v0)+'.txt',d,0,0,0)
 		totxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',d_,0,0,0)
 	lm_, lz_, lxh2_, lxhd_, lxe_, lTb_, lvr_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',7,0,0))
@@ -628,7 +633,7 @@ if __name__=="__main__":
 	#plt.show()
 	#"""
 	
-	"""
+	#"""
 	lls = ['-', '--', '-.', ':']*2
 	tag = 1
 	#rat = 10.
@@ -646,8 +651,10 @@ if __name__=="__main__":
 		out = []
 		out_ = []
 		for v in lv:
-			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk)
-			d_ = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = v, alpha = alpha)
+			initv0 = initial(v0 = v, mode = 0)
+			initv1 = initial(v0 = v, mode = 1)
+			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = initv1)
+			d_ = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = v, alpha = alpha, sk = sk, init = initv0)
 			out.append(d)
 			out_.append(d_)
 		lz = d[1]
@@ -779,18 +786,20 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep+'Vr_v.pdf')
 	plt.close()
-	"""
+	#"""
 
 	#"""
 	tag = 0
 	m = 1e6
 	zvir = 20
 	v0 = 24
+	init0 = initial(v0 = v0, mode = 0)
+	init1 = initial(v0 = v0, mode = 1)
 	rep0 = 'example/'
 	#dmax = delta0 #18 * np.pi**2 * 1
 	if tag==0:
-		d0 = stored(evolve(m, zvir, mode = 0, dmax = dmax, v0 = v0), m, zvir, mode = 0, v0 = v0)
-		d1 = stored(evolve(m, zvir, mode = 1, dmax = dmax, v0 = v0), m, zvir, mode = 1, v0 = v0)
+		d0 = stored(evolve(m, zvir, mode = 0, dmax = dmax, v0 = v0, init = init0), m, zvir, mode = 0, v0 = v0)
+		d1 = stored(evolve(m, zvir, mode = 1, dmax = dmax, v0 = v0, init = init1), m, zvir, mode = 1, v0 = v0)
 	else:
 		d0 = readd(m, zvir, v0, mode = 0)
 		d1 = readd(m, zvir, v0, mode = 1)
