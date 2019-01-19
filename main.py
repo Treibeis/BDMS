@@ -230,6 +230,10 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 Mup = lambda z: 2.5e7*((1+z)/10)**-1.5
 Mdown = lambda z: 1.54e5*((1+z)/31)**-2.074 #1e6*((1+z)/10)**-2
 
+def Vcool(z, v0, vc = 3.714e5, alpha = 4.015):
+	vbd = vbdm_z(z, v0)
+	return ((alpha*vbd)**2 + vc**2)**0.5
+
 def stored(d, Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, rep = 'data/'):
 	out0 = [d['t'], d['z'], d['Tb'], d['Tdm'], d['v'], d['rho'], d['nb']]
 	out1 = [[d['rat'], d['rat0'], d['rat1'], d['rat2'], d['s'], d['Tvir'], d['TbV'], d['m']]]
@@ -318,7 +322,7 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 					mth = 10**rat_m(np.log10(rat))
 		#if mode!=0:
 		mth0 = mth
-		mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, delta0)**2/(dmax/delta0)**(2/3))
+		mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, delta0)**2/(dmax/delta0)**(2/3))**(3/2)
 		print(Mdm, sigma, mth/1e6, mth0/1e6)#mth_stm(mth0, z, v0, alpha)/1e6)
 		out.append(mth)
 		lxh2.append(d['pV_pri'][0])
@@ -376,31 +380,27 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 20, dmax = 200, nbin 
 
 if __name__=="__main__":
 	tag = 1
-	v0 = 24
-	nbin = 28
-	ncore = 4
+	v0 = 60
+	nbin = 32
+	ncore = 8
 	dmax = delta0 * 100
 	rat = 1.
 	fac = 1e-3
 	#alpha0 = 3.
-	alpha = 1.
+	alpha = 0.7
 	sk = False
 	#sk = True
 	rep = '100-sigma_ns/'
 	zvir = 20
 	if not os.path.exists(rep):
 		os.makedirs(rep)
-
-	#refMh = Mth_z(16, 17, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)[0][1]
-	#refd = stored(evolve(1e6, 17, v0 = v0, fac = fac, mode = 0, dmax = dmax), 1e6, 17, 0)
-	#xH2r = refd['X'][3][-1]
-	#xHDr = refd['X'][11][-1]
-	#totxt(rep+'ref.txt', [[refMh, xH2r, xHDr]], 0,0,0)
+	init0 = initial(v0 = v0, mode = 0)
+	init1 = initial(v0 = v0, mode = 1)
 
 	#"""
 	if tag==0:
-		d = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat)
-		d_ = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat)
+		d = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat, alpha = alpha, init = init0)
+		d_ = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat, alpha = alpha, init = init1)
 		print('Mth at z = 20: {} 10^6 Msun (CDM)'.format(d[0][1]/1e6))
 		print('Mth at z = 20: {} 10^6 Msun (BDMS)'.format(d_[0][1]/1e6))
 		totxt(rep+'ref_'+str(v0)+'.txt', np.array(d).T, 0,0,0)
@@ -443,7 +443,7 @@ if __name__=="__main__":
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
 	cb.set_label(r'$\log(M_{\mathrm{th}}\ [M_{\odot}])$',size=12)
-	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)], colors='k')
+	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)-1e-2], colors='k')
 	print(np.min(Mh[Mh!=np.nan]))
 	plt.contour(X, Y, np.log10(Mh), [np.log10(Mup(zvir))], colors='k', linestyles='--')
 	plt.contour(X, Y, np.log10(Mh), [0.99+np.log10(Mup(zvir))], colors='k', linestyles='-.')
@@ -543,8 +543,6 @@ if __name__=="__main__":
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
 	tag = 1
-	init0 = initial(v0 = v0, mode = 0)
-	init1 = initial(v0 = v0, mode = 1)
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
@@ -792,7 +790,7 @@ if __name__=="__main__":
 	tag = 0
 	m = 1e6
 	zvir = 20
-	v0 = 24
+	v0 = 60
 	init0 = initial(v0 = v0, mode = 0)
 	init1 = initial(v0 = v0, mode = 1)
 	rep0 = 'example/'
