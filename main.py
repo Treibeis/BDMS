@@ -7,6 +7,8 @@ from txt import *
 import os
 import multiprocessing as mp
 import time
+import hmf
+import hmf.wdm
 
 x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
 			 [5e-4, 1.0, 1e-19, 0.0] + \
@@ -262,8 +264,8 @@ def readd(Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, dmax
 
 def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 0.0, alpha = 3., sk = False, init = init):
 	m0 = (m1*m2)**0.5
-	#lz = np.linspace(z1, z2, nzb)
-	lz = np.logspace(np.log10(z1), np.log10(z2), nzb)
+	lz = np.linspace(z1, z2, nzb)
+	#lz = np.logspace(np.log10(z1), np.log10(z2), nzb)
 	out = []
 	lxh2 = []
 	lxhd = []
@@ -323,7 +325,7 @@ def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, 
 		#if mode!=0:
 		mth0 = mth
 		mth = mth * (1+alpha*d['pV'][2]**2/Vcir(mth, z, delta0)**2/(dmax/delta0)**(2/3))**(3/2)
-		print(Mdm, sigma, mth/1e6, mth0/1e6)#mth_stm(mth0, z, v0, alpha)/1e6)
+		print(Mdm, sigma, mth/1e6, mth0/1e6, z)#mth_stm(mth0, z, v0, alpha)/1e6)
 		out.append(mth)
 		lxh2.append(d['pV_pri'][0])
 		lxhd.append(d['pV_pri'][1])
@@ -377,6 +379,27 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 20, dmax = 200, nbin 
 		#	lT[i,j] = -sol[0]
 		#	lTb[i,j] = sol[1]
 	return X, Y*1e-20, lMh, lXH2, lXHD, lXe, lTb, lvr
+
+def vdis(v, sigma = 30.):
+	return v**2 * np.exp(-v**2*1.5/sigma**2)
+
+def Nhalo(z, lm0, lv0, mode = 0, Mdm = 0.3e6, h = 0.6774, sigma = 30., vmax = 5.):
+	sel = lv0 < vmax*sigma
+	lm = lm0[sel]
+	lv = lv0[sel]
+	lw = vdis(lv, sigma)
+	if mode == 0:
+		hmf_ = hmf.MassFunction()
+		hmf_.update(n=0.966, sigma_8=0.829,cosmo_params={'Om0':0.315,'H0':67.74},Mmin=np.log10(np.min(lm*h))-1,Mmax=np.log10(Mup(z))+2,z=z)
+	else:
+		hmf_ = hmf.wdm.MassFunctionWDM(wdm_mass=Mdm)
+		hmf_.update(n=0.966, sigma_8=0.829,cosmo_params={'Om0':0.315,'H0':67.74},Mmin=np.log10(np.min(lm*h))-1,Mmax=np.log10(Mup(z))+2,z=z)
+	intm = np.log10(hmf_.m/h)
+	intn = np.log10(hmf_.ngtm)
+	nm = interp1d(intm, intn)
+	out = (10**nm(np.log10(lm))- 10**nm(np.log10(Mup(z)))) * lw
+	return np.trapz(out, lv)/np.trapz(lw, lv)
+		
 
 if __name__=="__main__":
 	tag = 1
@@ -632,16 +655,20 @@ if __name__=="__main__":
 	#"""
 	
 	#"""
+	rep = 'Nhrat/'
+	if not os.path.exists(rep):
+		os.makedirs(rep)
 	lls = ['-', '--', '-.', ':']*2
-	tag = 1
+	tag = 0
 	#rat = 10.
-	nz = 3
-	z1, z2 = 20, 100
+	nz = 19
+	z1, z2 = 10, 100
 
 	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'ref_z.txt', d0, 0, 0)
 
-	lv = np.logspace(0, 3, 31)
+	#lv = np.logspace(0, 3, 31)
+	lv = np.logspace(0, np.log10(150), 20)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
 		#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = 0)

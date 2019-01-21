@@ -24,7 +24,7 @@ plt.ylabel(r'$\dot{Q}_{b}\ [\mathrm{erg\ s^{-1}}]$')
 plt.text(uth*1.1, np.min(lQ)*0.9, r'$T_{b}=200\ \mathrm{K}$, $T_{\chi}=10\ \mathrm{K}$, $n=1\ \mathrm{cm^{-3}}$')
 plt.tight_layout()
 plt.savefig('Qb_v.pdf')
-#plt.show()
+plt.close()
 
 lv = [0, 24, 45, 60]
 lls = ['-', '--', '-.', ':']
@@ -125,7 +125,8 @@ for v0 in lv:
 	plt.savefig('Example_vbDM_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
 
-lv = np.logspace(0, 3, 31)
+rep = 'Nhrat/'
+lv = retxt(rep+'vbase.txt',1,0,0)[0] #np.logspace(0, 3, 31)
 vd, vu = np.min(lv), np.max(lv)
 lz = retxt(rep+'zbase.txt',1,0,0)[0]
 nz = len(lz)
@@ -137,6 +138,32 @@ lm_ = np.array(retxt(rep+'Mth_v0.txt',nz,0,0))
 lxh2_ = np.array(retxt(rep+'xh2_v0.txt',nz,0,0))
 lvr_ = np.array(retxt(rep+'vr_v0.txt',nz,0,0))
 
+lrat = []
+for i in range(nz):
+	Nh0 = Nhalo(lz[i], lm_[i], lv, 0)
+	Nh1 = Nhalo(lz[i], lm[i], lv, 1)
+	#print('Halo number ratio = {}, at z  = {}'.format(Nh1/Nh0, lz[i]))
+	lrat.append(Nh1/Nh0)
+totxt('Nh_ratio.txt',[lrat, lz],0,0,0)
+
+#"""
+ydown, yup = 5e-2, 2e1
+plt.figure()
+plt.plot(lz, lrat)
+plt.xlabel(r'$z_{vir}$')
+plt.ylabel(r'$\bar{n}_{h,\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h,\mathrm{Pop III}}(\mathrm{CDM})$')
+plt.fill_between([15,20],[ydown,ydown],[yup,yup], facecolor='gray', label='EDGES')
+#plt.xscale('log')
+plt.legend()
+plt.yscale('log')
+plt.xlim(15, 100)
+plt.ylim(ydown, yup)
+plt.tight_layout()
+plt.savefig('Nh_rat.pdf')
+#plt.show()
+plt.close()
+
+"""
 y1, y2 = 1e4, 3e9
 plt.figure()
 a = [plt.plot(lv, lm[i], label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, BDMS', ls = lls[i], color='r', lw = 2) for i in range(nz)]
@@ -191,3 +218,4 @@ plt.ylim(y1, y2)
 plt.tight_layout()
 plt.savefig('Vr_v.pdf')
 plt.close()
+"""
