@@ -9,6 +9,7 @@ import multiprocessing as mp
 import time
 import hmf
 import hmf.wdm
+from numba import njit
 
 x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
 			 [5e-4, 1.0, 1e-19, 0.0] + \
@@ -53,7 +54,8 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 		return TZ(0)
 	else:
 		return -Tb_old/dTb_dt
-	
+
+@njit	
 def GammaC0(over, xe):
 	logG = np.log10(over) * 1.115724778945266 -18.31281413734767
 	return 10**logG * xe
@@ -420,7 +422,7 @@ if __name__=="__main__":
 	init0 = initial(v0 = v0, mode = 0)
 	init1 = initial(v0 = v0, mode = 1)
 
-	#"""
+	"""
 	if tag==0:
 		d = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat, alpha = alpha, init = init0)
 		d_ = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat, alpha = alpha, init = init1)
@@ -558,9 +560,9 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep+'VrMap_v0_'+str(v0)+'.pdf')
 	plt.close()
-	#"""
+	"""
 
-	#"""
+	"""
 
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
@@ -652,9 +654,9 @@ if __name__=="__main__":
 	plt.savefig(rep+'Vr_z_'+str(v0)+'.pdf')
 	plt.close()
 	#plt.show()
-	#"""
+	"""
 	
-	#"""
+	"""
 	rep = 'Nhrat/'
 	if not os.path.exists(rep):
 		os.makedirs(rep)
@@ -811,15 +813,15 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep+'Vr_v.pdf')
 	plt.close()
-	#"""
+	"""
 
 	#"""
 	tag = 0
 	m = 1e6
 	zvir = 20
 	v0 = 60
-	init0 = initial(v0 = v0, mode = 0)
-	init1 = initial(v0 = v0, mode = 1)
+	#init0 = initial(v0 = v0, mode = 0)
+	#init1 = initial(v0 = v0, mode = 1)
 	rep0 = 'example/'
 	#dmax = delta0 #18 * np.pi**2 * 1
 	if tag==0:

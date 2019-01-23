@@ -3,15 +3,26 @@ from scipy.optimize import fsolve, curve_fit
 from scipy.special import erf
 from scipy.integrate import odeint, ode
 from scipy.interpolate import interp1d
+from numba import njit
 
 z_t = lambda x: ZT(np.log10(x/1e9/YR))
 
-foralpha = lambda x: (x-np.sin(x))/(2.*np.pi)
-fordelta = lambda alpha: 9.*(alpha-np.sin(alpha))**2. / (2.*(1.-np.cos(alpha))**3)
+@njit
+def foralpha(x):
+	return (x-np.sin(x))/(2.*np.pi)
+@njit
+def fordelta(alpha, lim = 1e-42): 
+	Dnom = np.array([2.*(1.-np.cos(alpha))**3, lim]).max()
+	return 9.*(alpha-np.sin(alpha))**2. / Dnom
 
 lx = np.linspace(0, 2*np.pi, 10000)
 lal = foralpha(lx)
-alpha_ap = interp1d([x for x in lal]+[1.0], [x for x in lx]+[2*np.pi])
+lx = [x for x in lx]#+[2*np.pi]
+lal = [x for x in lal]#+[1.0]
+#@njit
+#def alpha_ap(f):
+	
+alpha_ap = interp1d(lal, lx)
 
 #alpha_ap = lambda x: 2*(np.arcsin(2*x-1)+np.pi/2)
 
@@ -86,6 +97,7 @@ def vbdm_z(z, v0 = 30., z0 = 1100.):
 def uthf(mb, mdm, Tb, Tdm):
 	return (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
 
+#@jit(nopython=True)
 def drag(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
 	if v**2<=0:
@@ -95,6 +107,7 @@ def drag(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20):
 		A = (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/v**2 * (r>1e-5) + (2/np.pi)**0.5*r/(3*uth**2) * (r<=1e-5)
 		return rho*sigma*1e20/(mb+mdm) * A
 
+#@jit(nopython=True)
 def Q_IDMB(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20, gamma = 5/3):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
 	r = max(v/uth, 0)

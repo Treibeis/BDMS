@@ -1,7 +1,9 @@
 #from coolingf import *
 from cosmology import *
+from numba import njit
 kB = BOL
 
+@njit
 def LambdaBre(T, nhII, nheII, nheIII, ne): #LAM(1)
 	if T>5.e3:
 		gff = 1.1+0.34*np.e**(-(5.5-np.log10(T))**2.0/3.0)
@@ -9,16 +11,16 @@ def LambdaBre(T, nhII, nheII, nheIII, ne): #LAM(1)
 	else:
 		L = 1.e-52
 	return L
-
+@njit
 def LambdaIC(T, z=20, ne=1e4):
 	return ne*5.41e-36*(1+z)**4*T #LAM(11)
-
+@njit
 def LambdaHeI(T, n, ne=1e4): #LAM(3)
 	if T>8.e3:
 		return n*ne*9.38e-22*T**0.5*np.e**(-285335.4/T)/(1+(T/10**5)**0.5)
 	else:
 		return 1.e-52
-
+@njit
 def LambdaHeII(T, n, ne=1e4):
 	if T>1.e4:
 		L1 = n*ne*4.95e-22*T**0.5*np.e**(-631515.0/T)/(1+(T/10**5)**0.5) #LAM(4)
@@ -35,7 +37,7 @@ def LambdaHeII(T, n, ne=1e4):
 	else:
 		L4 = 1.e-52
 	return L1+L2+L3+L4+LD
-
+@njit
 def LambdaHeIII(T, n, ne=1e4):
 	if T>5.e3:
 		L1 = n*ne*3.48e-26*T**0.5*(T/1000)**(-0.2)/(1+(T/10**6)**0.7) #LAM(7)
@@ -46,7 +48,7 @@ def LambdaHeIII(T, n, ne=1e4):
 	else:
 		L2 = 0.0
 	return L1+L2
-
+@njit
 def LambdaHI(T, n, ne=1e4):
 	if T>5.e3:
 		L1 = n*ne*1.27e-21*T**0.5*np.e**(-157809.1/T)/(1.0+(T/10**5)**0.5) #LAM(2)
@@ -54,17 +56,17 @@ def LambdaHI(T, n, ne=1e4):
 		return L1+L2
 	else:
 		return 2.e-52
-
+@njit
 def LambdaHII(T, n, ne=1e4): #LAM(5)
 	if T>5.e3:
 		return n*ne*8.70e-27*T**0.5*(T/1000.0)**(-0.2)/(1.0+(T/1e6)**0.7)
 	else:
 		return 1.e-52
-
+@njit
 def LambdaHD(T, n, nh0, nh=1e8):
 	aa, bb, omeg, phi, c1, c2, d1, d2 = -26.2982, -0.215807, 2.03657, 4.63258, 0.283978, -1.27333, -2.08189, 4.66288
-	y = np.log10(np.min([np.max([nh,1]),1e8]))
-	x = np.min([np.max([np.log10(T),np.log10(30)]),np.log10(3)+3])
+	y = np.log10(nh) #np.log10(np.min([np.max([nh,1]),1e8]))
+	x = np.log10(T)#np.min([np.max([np.log10(T),np.log10(30)]),np.log10(3)+3])
 	w = 0.5*y+aa*x**bb-(0.25*y**2+(c1*y+c2)*np.sin(omeg*x+phi)+(d1*y+d2))**0.5
 	LHD = 10**w
 	if 1: #y!=np.log10(nh) or x!=np.log10(T):
@@ -77,18 +79,18 @@ def LambdaHD(T, n, nh0, nh=1e8):
 		LOW = LOW*nh0
 		LHD = LOW*LTE/(LOW+LTE)
 	return LHD*n
-
+@njit
 def LambdaLiH(T, n, nh=1e3):
-	a = np.ones(5,dtype='f')
+	a = np.zeros(5)#,dtype='f')
 	a[0], a[1], a[2], a[3], a[4] = -31.47, 8.817, -4.144, 0.8292, -0.04996
-	Llow = 10**sum([a[x]*(np.log10(T))**x for x in range(len(a))])*nh
-	a = np.ones(7,dtype='f')
+	Llow = 10**np.array([a[x]*(np.log10(T))**x for x in range(len(a))]).sum()*nh
+	a = np.zeros(7)#,dtype='f')
 	a[0], a[1], a[2], a[3], a[4], a[5], a[6] = -31.894, 34.3512, -31.0805, 14.9459, -3.72318, 0.455555, -0.0216129
-	LLTE = 10**sum([a[x]*(np.log10(T))**x for x in range(len(a))])
+	LLTE = 10**np.array([a[x]*(np.log10(T))**x for x in range(len(a))]).sum()
 	#ncrit = LLTE/Llow
 	LLi = LLTE*Llow/(LLTE+Llow)
 	return n*LLi
-
+@njit
 def LambdaH2(T, nh2, nh):
 	WH2 = -103.0+97.59*np.log10(T)-48.05*(np.log10(T))**2+10.8*(np.log10(T))**3-0.9032*(np.log10(T))**4
 	if WH2>-35:
@@ -104,7 +106,7 @@ def LambdaH2(T, nh2, nh):
 	#LH2 = LTE/(1.0+XNCRIT/nh)
 	LH2 = LOW*LTE/(LTE+LOW)
 	return nh2*LH2
-
+@njit
 def cool(T, ntot, n, J_21, z, gamma, X, T0):
 	Tcmb = T0*(1+z)
 	if T<Tcmb:
@@ -113,6 +115,8 @@ def cool(T, ntot, n, J_21, z, gamma, X, T0):
 	nh = n[0]+n[1]+n[2]+2.0*(n[3]+n[4])
 	ny = n
 	Gam = 0.0 #J_21*(5.1e-23*n[0] + 1.2e-22*n[6] + 2.5e-24*n[7])
+	L = np.zeros(4)
+	"""
 	L = np.zeros(11,dtype='float')
 	if T>5e3:
 		gff=1.1+0.34*np.exp(-(5.5-np.log10(T))**2/3.0)
@@ -164,17 +168,18 @@ def cool(T, ntot, n, J_21, z, gamma, X, T0):
 	else:
 		L[9]=1.e-42
 	L[10]=5.4e-36*(1.e0+z)**4*ny[5]*(T-Tcmb)
-	#L[0] = LambdaBre(T, n[1], n[7], n[8], n[5]) 
-	#L[1] = LambdaIC(T, z, n[5]) - LambdaIC(Tcmb, z, n[5]) 
-	#L[2] = LambdaHI(T, n[0], n[5]) + LambdaHII(T, n[1], n[5]) 
-	#L[3] = LambdaHeI(T, n[6], n[5]) + LambdaHeII(T, n[7], n[5]) + LambdaHeIII(T, n[8], n[5]) 
+	"""
+	L[0] = LambdaBre(T, n[1], n[7], n[8], n[5]) 
+	L[1] = LambdaIC(T, z, n[5]) - LambdaIC(Tcmb, z, n[5]) 
+	L[2] = LambdaHI(T, n[0], n[5]) + LambdaHII(T, n[1], n[5]) 
+	L[3] = LambdaHeI(T, n[6], n[5]) + LambdaHeII(T, n[7], n[5]) + LambdaHeIII(T, n[8], n[5]) 
 	LH2, LHD, LLiH = 0.0, 0.0, 0.0
 	if T<=2e4:
 		nhd = n[11]# 0.01*xnd 
 		LH2 = LambdaH2(T, n[3], n[0]) - LambdaH2(Tcmb, n[3], n[0]) 
 		LHD = LambdaHD(T, nhd, n[0], nh) - LambdaHD(Tcmb, nhd, n[0], nh) 
 		LLiH = LambdaLiH(T, n[16], n[0]) - LambdaLiH(Tcmb, n[16], n[0])
-	Lam = sum(L)+LH2+LHD+LLiH-Gam
+	Lam = np.sum(L)+LH2+LHD+LLiH-Gam
 	expansion = 0.0#- 3*kB*T*Hubble(z)
 	out = (-Lam/ntot + expansion)*(gamma-1.0)/BOL
 	return out
