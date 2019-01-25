@@ -13,8 +13,8 @@ x1, x2 = uth/10, uth*100
 y1, y2 = np.min(lQ)*1.05, np.max(lQ)*1.5
 plt.figure()
 plt.plot(lv, lQ)
-plt.plot([x1, x2], [0, 0], 'k', lw = 0.5)
-plt.plot([uth, uth], [y1, y2], 'k--', label=r'$u_{th}$')
+plt.plot([x1, x2], [0, 0], 'k--', lw = 0.5)
+plt.plot([uth, uth], [y1, y2], 'k-.', label=r'$u_{th}$')
 plt.legend()
 plt.xscale('log')
 plt.xlim(x1, x2)
@@ -147,16 +147,17 @@ for i in range(nz):
 totxt('Nh_ratio.txt',[lrat, lz],0,0,0)
 
 #"""
-ydown, yup = 5e-2, 2e1
+ydown, yup = 5e-2, 1e1
 plt.figure()
 plt.plot(lz, lrat)
 plt.xlabel(r'$z_{vir}$')
-plt.ylabel(r'$\bar{n}_{h,\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h,\mathrm{Pop III}}(\mathrm{CDM})$')
+plt.ylabel(r'$\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{CDM})$')
 plt.fill_between([15,20],[ydown,ydown],[yup,yup], facecolor='gray', label='EDGES')
+plt.plot([15, 100], [1, 1], 'k--', lw = 0.5)
 #plt.xscale('log')
 plt.legend()
 plt.yscale('log')
-plt.xlim(15, 100)
+plt.xlim(15, 60)
 plt.ylim(ydown, yup)
 plt.tight_layout()
 plt.savefig('Nh_rat.pdf')
