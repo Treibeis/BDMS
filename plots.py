@@ -1,4 +1,7 @@
 from main import *
+import matplotlib
+matplotlib.rcParams['mathtext.fontset'] = 'stix'
+matplotlib.rcParams['font.family'] = 'STIXGeneral'
 
 n = 1
 rhob = n*1.22*PROTON
@@ -12,10 +15,12 @@ lQ = [Q_IDMB(rhodm, v*1e5, Tb, Tdm)*BOL/(5/3-1) for v in lv]
 x1, x2 = uth/10, uth*100
 y1, y2 = np.min(lQ)*1.05, np.max(lQ)*1.5
 plt.figure()
-plt.plot(lv, lQ)
+plt.plot(lv, lQ, 'g-')
 plt.plot([x1, x2], [0, 0], 'k--', lw = 0.5)
 plt.plot([uth, uth], [y1, y2], 'k-.', label=r'$u_{th}$')
-plt.legend()
+plt.fill_between([x1, x2], [0, 0], [y1, y1], facecolor = 'b', alpha=0.3, label='Cooling')
+plt.fill_between([x1, x2], [0, 0], [y2, y2], facecolor = 'r', alpha=0.3, label='Heating')
+plt.legend(loc=2)
 plt.xscale('log')
 plt.xlim(x1, x2)
 plt.ylim(y1, y2)
@@ -32,15 +37,21 @@ lla = [r'$v_{b\chi,0}=0$', r'$v_{b\chi,0}=0.8\sigma_{rms}$', r'$v_{b\chi,0}=1.5\
 
 rep = '100-sigma_ns/'
 
-yup = 2e8
-plt.figure()
-for v0, ls, lab in zip(lv, lls, lla):
+y0, yup = 1e5, 2e8
+x1, x2 = 15, 60
+lzt = np.linspace(x1, x2, 10)
+lt = [TZ(z)/(1e6*YR) for z in lzt]
+y1, y2, y3 = 1e6*(1.63+0.48)/2, 1e6*(1.21+3.93)/2, 1e6*(11.27+6.08)/2 #10**5.7, 10**6.09, 10**6.77
+fig = plt.figure(figsize=(12,5))
+ax1 = fig.add_subplot(121)
+for v0, ls, lab in zip(lv[:2], lls[:2], lla[:2]):
 	lm_, lz_, lxh2_, lxhd_, lxe_, lTb_, lvr_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',7,0,0))
 	plt.plot(lz_, lm_, label=lab+', BDMS', ls = ls, lw = 2, color='r')
-for v0, ls, lab in zip(lv, lls, lla):
+for v0, ls, lab in zip(lv[:2], lls[:2], lla[:2]):
 	lm, lz, lxh2, lxhd, lxe, lTb, lvr = np.array(retxt(rep+'Mthz_CDM_'+str(v0)+'.txt',7,0,0))	
 	plt.plot(lz, lm, label=lab+', CDM', ls = ls, lw = 1, color='b')
-#plt.plot(lz, Mdown(lz), 'k-', label='Trenti & Stiavelli (2009)', lw = 0.5)
+plt.plot([x1, 24],[y1, y1], 'g-', label=lla[0]+', S18', lw = 3.5, alpha=0.8)
+plt.plot([x1, 20],[y2, y2], 'g--', label=r'$v_{b\chi,0}=1\sigma_{rms}$'+', S18', lw = 3.5, alpha=0.8)
 plt.plot(lz, M_vcir(lz, Vcool(lz, 0)), 'k-', label=lla[0]+', F12', lw = 0.5)
 plt.plot(lz, M_vcir(lz, Vcool(lz, lv[1])), 'k--', label=lla[1]+', F12', lw = 0.5)
 plt.fill_between([15,20],[1e4,1e4],[yup,yup], facecolor='gray', label='EDGES')
@@ -49,8 +60,36 @@ plt.xlabel(r'$z_{vir}$')
 plt.ylabel(r'$\tilde{M}_{\mathrm{th}}\ [M_{\odot}]$')
 #plt.xscale('log')
 plt.yscale('log')
-plt.xlim(15, 100)
-plt.ylim(1e4, yup)
+plt.xlim(x1, x2)
+plt.ylim(y0, yup)
+ax2 = ax1.twiny()
+ax2.set_xticks(lzt)
+ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
+ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
+plt.xlim(x1, x2)
+
+ax1 = fig.add_subplot(122)
+for v0, ls, lab in zip(lv[2:], lls[2:], lla[2:]):
+	lm_, lz_, lxh2_, lxhd_, lxe_, lTb_, lvr_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',7,0,0))
+	plt.plot(lz_, lm_, label=lab+', BDMS', ls = ls, lw = 2, color='r')
+for v0, ls, lab in zip(lv[2:], lls[2:], lla[2:]):
+	lm, lz, lxh2, lxhd, lxe, lTb, lvr = np.array(retxt(rep+'Mthz_CDM_'+str(v0)+'.txt',7,0,0))	
+	plt.plot(lz, lm, label=lab+', CDM', ls = ls, lw = 1, color='b')
+plt.plot([x1, 18],[y3, y3], 'g:', label=lla[3]+', S18', lw = 3.5, alpha=0.8)
+plt.plot(lz, M_vcir(lz, Vcool(lz, lv[2])), 'k-.', label=lla[2]+', F12', lw = 0.5)
+plt.plot(lz, M_vcir(lz, Vcool(lz, lv[3])), 'k:', label=lla[3]+', F12', lw = 0.5)
+plt.fill_between([15,20],[1e4,1e4],[yup,yup], facecolor='gray')#, label='EDGES')
+plt.legend()
+plt.xlabel(r'$z_{vir}$')
+plt.ylabel(r'$\tilde{M}_{\mathrm{th}}\ [M_{\odot}]$')
+plt.yscale('log')
+plt.xlim(x1, x2)
+plt.ylim(y0, yup)
+ax2 = ax1.twiny()
+ax2.set_xticks(lzt)
+ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
+ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
+plt.xlim(x1, x2)
 plt.tight_layout()
 plt.savefig('Mth_z.pdf')
 plt.close()
@@ -65,7 +104,7 @@ for v0 in lv:
 	Mh = np.array(retxt(rep+'Mh_'+str(v0)+'.txt',nbin,0,0))
 	refMh, z, xH2r, xHDr, xer, Tbr, vrr = retxt(rep+'ref_'+str(v0)+'.txt',1,0,0)[0]
 	plt.figure()
-	ctf = plt.contourf(X, Y, np.log10(Mh), np.linspace(5.5, 8, 2*nbin), cmap=plt.cm.Blues)
+	ctf = plt.contourf(X, Y, np.log10(Mh), np.linspace(5.5, 8, 2*nbin), cmap=plt.cm.rainbow)#cm.Blues)
 	for c in ctf.collections:
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
@@ -85,7 +124,12 @@ for v0 in lv:
 
 	d0 = readd(m, zvir, v0, mode = 0)
 	d1 = readd(m, zvir, v0, mode = 1)
-	plt.figure()
+
+	lzt = lzt = [10.4]+[20*i+20 for i in range(5)]+[150, 200, 250, 300]#[int(z) for z in np.geomspace(10.0,100.,6)]
+	loc = np.log10([TZ(z)/(1e6*YR) for z in lzt])
+
+	fig = plt.figure()
+	ax1 = fig.add_subplot(111)
 	plt.plot(d0['t'], d0['Tb'], label=r'$T_{b}$, CDM', color='b')
 	plt.plot(d1['t'], d1['Tb'], '--', label=r'$T_{b}$, BDMS', color='r')
 	#plt.plot(d0['t'], d0['Tdm'], '-.', label=r'$T_{\chi}$, CDM')
@@ -98,6 +142,12 @@ for v0 in lv:
 	plt.yscale('log')
 	plt.xlim(np.min(d0['t']), np.max(d0['t']))
 	plt.ylim(1, 3e3)
+	ax2 = ax1.twiny()
+	#ax2.set_xscale('log')
+	ax2.set_xticks(loc)
+	ax2.set_xticklabels([str(int(z)) for z in lzt],size=11)
+	ax2.set_xlabel(r'$z$')
+	ax2.set_xlim(np.log10(ax1.get_xlim()))
 	plt.tight_layout()
 	plt.savefig('Example_T_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
@@ -110,7 +160,8 @@ for v0 in lv:
 		continue
 	vIGM = [vbdm_z(z, v0)/1e5 for z in d0['z']]
 	luth = [uthf(PROTON, 0.3*GeV_to_mass, T, Td)/1e5 for T, Td in zip(d1['Tb'], d1['Tdm'])]
-	plt.figure()
+	fig = plt.figure()
+	ax1 = fig.add_subplot(111)
 	plt.plot(d0['t'], d0['v']/1e5, label='CDM', color='b')
 	plt.plot(d1['t'], d1['v']/1e5, '--', label='BDMS', color='r')
 	plt.plot(d1['t'], luth, '-.', label=r'$u_{th}$', color='orange')
@@ -118,12 +169,45 @@ for v0 in lv:
 	plt.xlabel(r'$t\ [\mathrm{Myr}]$')
 	plt.ylabel(r'$v_{b\chi}\ [\mathrm{km\ s^{-1}}]$')
 	plt.legend()
+	plt.xlim(np.min(d0['t']), np.max(d0['t']))
 	plt.ylim(np.min(vIGM)/10, np.max(vIGM)*10)
 	plt.xscale('log')
 	plt.yscale('log')
+	ax2 = ax1.twiny()
+	#ax2.set_xscale('log')
+	ax2.set_xticks(loc)
+	ax2.set_xticklabels([str(int(z)) for z in lzt],size=11)
+	ax2.set_xlabel(r'$z$')
+	ax2.set_xlim(np.log10(ax1.get_xlim()))
 	plt.tight_layout()
 	plt.savefig('Example_vbDM_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
+
+v0 = 30
+mgas = mmw()*PROTON
+nIGM = [rhom(1/(1+z))*0.048/(0.315*mgas) for z in d0['z']]
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+ax1.plot(d0['t'], d0['nb'], label='Top-hat model')
+	#plt.plot(d1['t'], d1['nb'], '--', label='BDMS')
+ax1.plot(d0['t'], nIGM, '-.', label='IGM')
+ax1.set_xlabel(r'$t\ [\mathrm{Myr}]$')
+ax1.set_ylabel(r'$n\ [\mathrm{cm^{-3}}]$')
+ax1.legend()
+ax1.set_xscale('log')
+ax1.set_yscale('log')
+ax1.set_xlim(np.min(d0['t']), np.max(d0['t']))
+ax2 = ax1.twiny()
+#lzt = [10]+[20*i+20 for i in range(5)]+[150, 200, 250, 300]#[int(z) for z in np.geomspace(10.0,300.,8)]
+#loc = np.log10([TZ(z)/(1e6*YR) for z in lzt])
+ax2.set_xlim(np.log10(ax1.get_xlim()))
+ax2.set_xticks(loc)
+ax2.set_xticklabels([str(int(z)) for z in lzt],size=11)
+ax2.set_xlabel(r'$z$')
+#ax2.set_xscale('log')
+plt.tight_layout()
+plt.savefig('Example_n_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
+plt.close()
 
 rep = 'Nhrat/'
 lv = retxt(rep+'vbase.txt',1,0,0)[0] #np.logspace(0, 3, 31)
@@ -148,7 +232,8 @@ totxt('Nh_ratio.txt',[lrat, lz],0,0,0)
 
 #"""
 ydown, yup = 5e-2, 1e1
-plt.figure()
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
 plt.plot(lz, lrat)
 plt.xlabel(r'$z_{vir}$')
 plt.ylabel(r'$\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{CDM})$')
@@ -159,6 +244,13 @@ plt.legend()
 plt.yscale('log')
 plt.xlim(15, 60)
 plt.ylim(ydown, yup)
+ax2 = ax1.twiny()
+lzt = np.linspace(15, 60, 10)
+lt = [TZ(z)/(1e6*YR) for z in lzt]
+ax2.set_xticks(lzt)
+ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
+ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
+ax2.set_xlim(ax1.get_xlim())
 plt.tight_layout()
 plt.savefig('Nh_rat.pdf')
 #plt.show()
