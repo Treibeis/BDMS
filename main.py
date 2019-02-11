@@ -422,7 +422,7 @@ def Nhalo(z, lm0, lv0, mode = 0, Mdm = 0.3e6, h = 0.6774, sigma = 30., vmax = 5.
 
 if __name__=="__main__":
 	tag = 0
-	v0 = 45
+	v0 = 60
 	nbin = 32
 	ncore = 8
 	dmax = delta0 * 100
@@ -486,7 +486,7 @@ if __name__=="__main__":
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
 	cb.set_label(r'$\log(M_{\mathrm{th}}\ [M_{\odot}])$',size=12)
-	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)], colors='k')
+	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)+2e2], colors='k')
 	print(np.min(Mh[Mh!=np.nan]))
 	plt.contour(X, Y, np.log10(Mh), [np.log10(Mup(zvir))], colors='k', linestyles='--')
 	plt.contour(X, Y, np.log10(Mh), [0.99+np.log10(Mup(zvir))], colors='k', linestyles='-.')
