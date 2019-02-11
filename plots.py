@@ -35,7 +35,8 @@ lv = [0, 24, 45, 60]
 lls = ['-', '--', '-.', ':']
 lla = [r'$v_{b\chi,0}=0$', r'$v_{b\chi,0}=0.8\sigma_{rms}$', r'$v_{b\chi,0}=1.5\sigma_{rms}$', r'$v_{b\chi,0}=2\sigma_{rms}$']
 
-rep = '100-sigma_ns/'
+#rep = '100-sigma_ns/'
+rep = '100-sigma_test0/'
 
 y0, yup = 1e5, 2e8
 x1, x2 = 15, 60
@@ -144,9 +145,11 @@ for v0 in lv:
 	#plt.plot(d0['t'], d0['Tdm'], '-.', label=r'$T_{\chi}$, CDM')
 	plt.plot(d1['t'], d1['Tdm'], '-.', label=r'$T_{\chi}$, BDMS', color='orange')
 	plt.plot(d1['t'], (d1['z']+1)*2.726, ':', label=r'$T_{cmb}$', color='g')
+	plt.plot(d1['t'], T_b(d1['z']), 'k-', label=r'$T_{b}(\mathrm{IGM})$, CDM', lw=0.5)
 	plt.xlabel(r'$t\ [\mathrm{Myr}]$')
 	plt.ylabel(r'$T\ [\mathrm{K}]$')
-	plt.legend()
+	if v0==0:
+		plt.legend()
 	plt.xscale('log')
 	plt.yscale('log')
 	plt.xlim(np.min(d0['t']), np.max(d0['t']))
@@ -213,8 +216,8 @@ ax2.set_xlabel(r'$z$')
 plt.tight_layout()
 plt.savefig('Example_n_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 plt.close()
+#"""
 
-rep = 'Nhrat/'
 lv = retxt(rep+'vbase.txt',1,0,0)[0] #np.logspace(0, 3, 31)
 vd, vu = np.min(lv), np.max(lv)
 lz = retxt(rep+'zbase.txt',1,0,0)[0]
@@ -227,41 +230,7 @@ lm_ = np.array(retxt(rep+'Mth_v0.txt',nz,0,0))
 lxh2_ = np.array(retxt(rep+'xh2_v0.txt',nz,0,0))
 lvr_ = np.array(retxt(rep+'vr_v0.txt',nz,0,0))
 
-lrat = []
-for i in range(nz):
-	Nh0 = Nhalo(lz[i], lm_[i], lv, 0)
-	Nh1 = Nhalo(lz[i], lm[i], lv, 1)
-	#print('Halo number ratio = {}, at z  = {}'.format(Nh1/Nh0, lz[i]))
-	lrat.append(Nh1/Nh0)
-totxt('Nh_ratio.txt',[lrat, lz],0,0,0)
-
 #"""
-ydown, yup = 5e-2, 1e1
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-plt.plot(lz, lrat)
-plt.xlabel(r'$z_{vir}$')
-plt.ylabel(r'$\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{CDM})$')
-plt.fill_between([15,20],[ydown,ydown],[yup,yup], facecolor='gray', label='EDGES')
-plt.plot([15, 100], [1, 1], 'k--', lw = 0.5)
-#plt.xscale('log')
-plt.legend()
-plt.yscale('log')
-plt.xlim(15, 60)
-plt.ylim(ydown, yup)
-ax2 = ax1.twiny()
-lzt = np.linspace(15, 60, 10)
-lt = [TZ(z)/(1e6*YR) for z in lzt]
-ax2.set_xticks(lzt)
-ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
-ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
-ax2.set_xlim(ax1.get_xlim())
-plt.tight_layout()
-plt.savefig('Nh_rat.pdf')
-#plt.show()
-plt.close()
-
-"""
 y1, y2 = 1e4, 3e9
 plt.figure()
 a = [plt.plot(lv, lm[i], label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, BDMS', ls = lls[i], color='r', lw = 2) for i in range(nz)]
@@ -316,4 +285,50 @@ plt.ylim(y1, y2)
 plt.tight_layout()
 plt.savefig('Vr_v.pdf')
 plt.close()
-"""
+#"""
+
+rep = 'Nhrat/'
+lv = retxt(rep+'vbase.txt',1,0,0)[0] #np.logspace(0, 3, 31)
+vd, vu = np.min(lv), np.max(lv)
+lz = retxt(rep+'zbase.txt',1,0,0)[0]
+nz = len(lz)
+
+lm = np.array(retxt(rep+'Mth_v.txt',nz,0,0))
+lxh2 = np.array(retxt(rep+'xh2_v.txt',nz,0,0))
+lvr = np.array(retxt(rep+'vr_v.txt',nz,0,0))
+lm_ = np.array(retxt(rep+'Mth_v0.txt',nz,0,0))
+lxh2_ = np.array(retxt(rep+'xh2_v0.txt',nz,0,0))
+lvr_ = np.array(retxt(rep+'vr_v0.txt',nz,0,0))
+
+lrat = []
+for i in range(nz):
+	Nh0 = Nhalo(lz[i], lm_[i], lv, 0)
+	Nh1 = Nhalo(lz[i], lm[i], lv, 1)
+	#print('Halo number ratio = {}, at z  = {}'.format(Nh1/Nh0, lz[i]))
+	lrat.append(Nh1/Nh0)
+totxt('Nh_ratio.txt',[lrat, lz],0,0,0)
+
+ydown, yup = 5e-2, 1e1
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+plt.plot(lz, lrat)
+plt.xlabel(r'$z_{vir}$')
+plt.ylabel(r'$\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{CDM})$')
+plt.fill_between([15,20],[ydown,ydown],[yup,yup], facecolor='gray', label='EDGES')
+plt.plot([15, 100], [1, 1], 'k--', lw = 0.5)
+#plt.xscale('log')
+plt.legend()
+plt.yscale('log')
+plt.xlim(15, 60)
+plt.ylim(ydown, yup)
+ax2 = ax1.twiny()
+lzt = np.linspace(15, 60, 10)
+lt = [TZ(z)/(1e6*YR) for z in lzt]
+ax2.set_xticks(lzt)
+ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
+ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
+ax2.set_xlim(ax1.get_xlim())
+plt.tight_layout()
+plt.savefig('Nh_rat.pdf')
+#plt.show()
+plt.close()

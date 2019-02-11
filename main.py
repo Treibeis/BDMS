@@ -11,23 +11,26 @@ import hmf
 import hmf.wdm
 from numba import njit
 
-z0_default = 300
-x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
+zi_tag = 0
+
+if zi_tag==0:
+	z0_default = 300
+	x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
 			 [5e-4, 1.0, 1.4e-20, 0.0] + \
 			 [1.0, 5e-4, 2.5e-11] + \
 			 [1.0, 1e-4, 0, 0, 1e-14]
-
+else:
+	z0_default = 800
+	x0_default = [1., 2e-3, 1e-20, 1e-12, 5e-18] + \
+			 [2e-3, 1.0, 1.4e-18, 0.0] + \
+			 [1.0, 2e-3, 2.5e-12] + \
+			 [1.0, 2.2e-9, 0, 0, 0]
 #z0_default = 1000
 #x0_default = [.9, 1e-1, 1e-19, 1e-13, 1e-17] +\
 #			 [1e-1, 1.0, 2.7e-16, 0.0]+ \
 #			 [1.0, 1e-1, 2.5e-12] + \
 #			 [1.0, 1e-10, 0, 0, 0]
 
-#z0_default = 800
-#x0_default = [1., 2e-3, 1e-20, 1e-12, 5e-18] + \
-#			 [2e-3, 1.0, 1.4e-18, 0.0] + \
-#			 [1.0, 2e-3, 2.5e-12] + \
-#			 [1.0, 2.2e-9, 0, 0, 0]
 
 def initial(z0 = z0_default, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_default, z00 = 1100, Om = 0.315, Ob = 0.048, h = 0.6774, T0 = 2.726, vmin = 0.0):
 	#0: XH, 1: XH+, 2: XH-, 3: XH2, 4: XH2+,
@@ -150,7 +153,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = z0_default, v0 = 30, mode = 0, fac = 1.0, M
 
 		if count==0:
 			Cr0, Ds0 = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
-			abund0 = chemi1.chemistry1(max(Tb_old,10*Tmin), nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
+			abund0 = chemi1.chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
 			Cr0, Ds0 = abund0[5], abund0[6]
 		else:
 			Cr0, Ds0 = abund[5], abund[6]
@@ -207,6 +210,7 @@ def evolve(Mh = 1e6, zvir = 20, z0 = z0_default, v0 = 30, mode = 0, fac = 1.0, M
 			tcool = coolt(*pV, mode, *para)
 			#v_old = max(VV, v_old)
 			tag1 = 1
+			#print('x_H2 = {}'.format(nold[3]/refa[3]))
 		if (count%10==0)or(t_cum>=tmax):
 			lt.append(t_cum)#[count] = t_cum
 			lTb.append(Tb_old)#[count] = Told
@@ -421,8 +425,8 @@ def Nhalo(z, lm0, lv0, mode = 0, Mdm = 0.3e6, h = 0.6774, sigma = 30., vmax = 5.
 		
 
 if __name__=="__main__":
-	tag = 0
-	v0 = 60
+	tag = 1
+	v0 = 24
 	nbin = 32
 	ncore = 8
 	dmax = delta0 * 100
@@ -432,8 +436,10 @@ if __name__=="__main__":
 	alpha = 0.7
 	sk = False
 	#sk = True
-	#rep = '100-sigma_test/'
-	rep = '100-sigma_test0/'
+	if zi_tag==0:
+		rep = '100-sigma_test0/'
+	else:
+		rep = '100-sigma_test/'
 	zvir = 20
 	if not os.path.exists(rep):
 		os.makedirs(rep)
@@ -675,20 +681,20 @@ if __name__=="__main__":
 	#"""
 	
 	#"""
-	#rep = 'Nhrat/'
-	#if not os.path.exists(rep):
-	#	os.makedirs(rep)
+	rep = 'Nhrat/'
+	if not os.path.exists(rep):
+		os.makedirs(rep)
 	lls = ['-', '--', '-.', ':']*2
-	tag = 1
+	tag = 0
 	#rat = 10.
-	nz = 3#19
-	z1, z2 = 20, 100
+	nz = 19
+	z1, z2 = 10, 100
 
 	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'ref_z.txt', d0, 0, 0)
 
-	lv = np.logspace(0, 3, 31)
-	#lv = np.logspace(0, np.log10(150), 20)
+	#lv = np.logspace(0, 3, 31)
+	lv = np.logspace(0, np.log10(150), 20)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
 		#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = 0)
@@ -834,24 +840,30 @@ if __name__=="__main__":
 	"""
 
 	#"""
-	tag = 0
+	tag = 1
 	m = 1e6
 	zvir = 20
-	#v0 = 24
-	#init0 = initial(v0 = v0, mode = 0)
-	#init1 = initial(v0 = v0, mode = 1)
-	#rep0 = 'example_test/'
-	rep0 = 'example_test0/'
-	drep = 'data0/'
+	v0 = 30
+	Mdm =  0.3 #0.001
+	sigma = 8e-20 #1e-17
+	if zi_tag==0:
+		rep0 = 'example_test0/'
+		drep = 'data0/'
+	else:
+		rep0 = 'example_test/'
+		drep = 'data_test/'
+	
 	if not os.path.exists(rep0):
 		os.makedirs(rep0)
 	#dmax = delta0 #18 * np.pi**2 * 1
+	init0 = initial(v0 = v0, mode = 0, Mdm = Mdm, sigma = sigma)
+	init1 = initial(v0 = v0, mode = 1, Mdm = Mdm, sigma = sigma)
 	if tag==0:
-		d0 = stored(evolve(m, zvir, mode = 0, dmax = dmax, v0 = v0, init = init0), m, zvir, mode = 0, v0 = v0, rep = drep)
-		d1 = stored(evolve(m, zvir, mode = 1, dmax = dmax, v0 = v0, init = init1), m, zvir, mode = 1, v0 = v0, rep = drep)
+		d0 = stored(evolve(m, zvir, mode = 0, dmax = dmax, v0 = v0, init = init0, Mdm = Mdm, sigma = sigma), m, zvir, mode = 0, v0 = v0, rep = drep, Mdm = Mdm, sigma = sigma)
+		d1 = stored(evolve(m, zvir, mode = 1, dmax = dmax, v0 = v0, init = init1, Mdm = Mdm, sigma = sigma), m, zvir, mode = 1, v0 = v0, rep = drep, Mdm = Mdm, sigma = sigma)
 	else:
-		d0 = readd(m, zvir, v0, mode = 0, rep = drep)
-		d1 = readd(m, zvir, v0, mode = 1, rep = drep)
+		d0 = readd(m, zvir, v0, mode = 0, rep = drep, Mdm = Mdm, sigma = sigma)
+		d1 = readd(m, zvir, v0, mode = 1, rep = drep, Mdm = Mdm, sigma = sigma)
 	
 	mgas = mmw()*PROTON
 	nIGM = [rhom(1/(1+z))*0.048/(0.315*mgas) for z in d0['z']]
@@ -880,8 +892,8 @@ if __name__=="__main__":
 	plt.legend()
 	plt.xscale('log')
 	plt.yscale('log')
-	plt.xlim(np.min(d0['t']), np.max(d0['t']))
-	plt.ylim(1, 3e3)
+	#plt.xlim(np.min(d0['t']), np.max(d0['t']))
+	#plt.ylim(1, 3e3)
 	plt.tight_layout()
 	plt.savefig(rep0+'Example_T_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
@@ -914,22 +926,23 @@ if __name__=="__main__":
 
 	plt.figure()
 	#plt.plot(d0['t'], d0['X'][0], label='0')
-	plt.plot(d0['t'], d0['X'][3], label='3')
-	plt.plot(d0['t'], d0['X'][5], label='5')
+	plt.plot(d1['z'], d1['X'][3], label='3')
+	plt.plot(d1['z'], d1['X'][5], label='5')
 	#plt.plot(d0['t'], d0['X'][9], label='9')
-	plt.plot(d0['t'], d0['X'][10], label='10')
-	plt.plot(d0['t'], d0['X'][11], label='11')
-	plt.plot(d0['t'], d0['X'][2], label='2')
-	plt.plot(d0['t'], d0['X'][4], label='4')
+	plt.plot(d1['z'], d1['X'][10], label='10')
+	plt.plot(d1['z'], d1['X'][11], label='11')
+	plt.plot(d1['z'], d1['X'][2], label='2')
+	plt.plot(d1['z'], d1['X'][4], label='4')
 	#plt.plot(d1['t'], d1['X'][5], '--', label='BDMS')
-	plt.xlabel(r'$t\ [\mathrm{Myr}]$')
+	#plt.xlabel(r'$t\ [\mathrm{Myr}]$')
+	plt.xlabel(r'$z$')
 	plt.ylabel(r'$x$')
 	plt.legend()
 	plt.xscale('log')
 	plt.yscale('log')
 	#plt.ylim(1e-5, 1e-3)
 	plt.tight_layout()
-	plt.savefig(rep0+'Example_X_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
+	plt.savefig(rep0+'Example_X_z_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
 	#plt.show()
 
