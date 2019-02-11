@@ -11,12 +11,25 @@ import hmf
 import hmf.wdm
 from numba import njit
 
+z0_default = 300
 x0_default = [1., 5e-4, 1e-18, 1e-11, 5e-16] + \
-			 [5e-4, 1.0, 1e-19, 0.0] + \
+			 [5e-4, 1.0, 1.4e-20, 0.0] + \
 			 [1.0, 5e-4, 2.5e-11] + \
-			 [1.0, 0, 0, 0, 0]
+			 [1.0, 1e-4, 0, 0, 1e-14]
 
-def initial(z0 = 300, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_default, z00 = 1100, Om = 0.315, Ob = 0.048, h = 0.6774, T0 = 2.726, vmin = 0.0):
+#z0_default = 1000
+#x0_default = [.9, 1e-1, 1e-19, 1e-13, 1e-17] +\
+#			 [1e-1, 1.0, 2.7e-16, 0.0]+ \
+#			 [1.0, 1e-1, 2.5e-12] + \
+#			 [1.0, 1e-10, 0, 0, 0]
+
+#z0_default = 800
+#x0_default = [1., 2e-3, 1e-20, 1e-12, 5e-18] + \
+#			 [2e-3, 1.0, 1.4e-18, 0.0] + \
+#			 [1.0, 2e-3, 2.5e-12] + \
+#			 [1.0, 2.2e-9, 0, 0, 0]
+
+def initial(z0 = z0_default, v0 =30, mode = 0, Mdm = 0.3, sigma = 8e-20, x0 = x0_default, z00 = 1100, Om = 0.315, Ob = 0.048, h = 0.6774, T0 = 2.726, vmin = 0.0):
 	#0: XH, 1: XH+, 2: XH-, 3: XH2, 4: XH2+,
 	#5: Xe, 6: XHe, 7: XHe+, 8: XHe++, 
 	#9: XD, 10: XD+, 11: XHD,
@@ -57,10 +70,10 @@ def coolt(Tb_old, Tdm_old, v_old, nb, nold, rhob_old, rhodm_old, z, mode, Mdm, s
 
 @njit	
 def GammaC0(over, xe):
-	logG = np.log10(over) * 1.115724778945266 -18.31281413734767
-	return 10**logG * xe
+	#logG = np.log10(over) * 1.115724778945266 -18.31281413734767
+	return 0.0 #10**logG * xe
 
-def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1., vmin = 0.0, nmax = int(1e6), init =init):
+def evolve(Mh = 1e6, zvir = 20, z0 = z0_default, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.3, sigma = 8e-20, num = int(1e3), epsT = 1e-3, epsH = 1e-2, dmax = 18*np.pi**2, gamma = 5/3, X = 0.76, D = 4e-5, Li = 4.6e-10, T0 = 2.726, Om = 0.315, Ob = 0.048, h = 0.6774, dtmin = YR, J_21=0.0, Tmin = 1., vmin = 0.0, nmax = int(1e6), init =init):
 	start = time.time()
 	#print(Mdm, sigma, init['Tb'], init['Tdm'], init['vbdm'])
 	xh = 4.0*X/(1.0+3.0*X)
@@ -134,15 +147,17 @@ def evolve(Mh = 1e6, zvir = 20, z0 = 300, v0 = 30, mode = 0, fac = 1.0, Mdm = 0.
 			tagt = 1
 		if dt_T + t_cum>tmax:
 			dt_T = tmax - t_cum
-		#if count==0:
-		#	Cr0, Ds0 = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
-		#	abund0 = chemistry1(max(Tb_old,10*Tmin), nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
-		#	Cr0, Ds0 = abund0[5], abund0[6]
-		#else:
-		#	Cr0, Ds0 = abund[5], abund[6]
+
+		if count==0:
+			Cr0, Ds0 = np.zeros(Ns,dtype='float'), np.zeros(Ns,dtype='float')
+			abund0 = chemi1.chemistry1(max(Tb_old,10*Tmin), nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
+			Cr0, Ds0 = abund0[5], abund0[6]
+		else:
+			Cr0, Ds0 = abund[5], abund[6]
+
 		nold = yy * refa
-		#abund = chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
-		abund = chemi2.chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, z = z, T0 = T0)
+		abund = chemi1.chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, Cr0, Ds0, z = z, T0 = T0)
+		#abund = chemi2.chemistry1(Tb_old, nold*nb, dt_T, epsH, J_21, Ns, xh*nb, xhe*nb, xd*nb, xli*nb, z = z, T0 = T0)
 		nold = abund[0]/nb
 		for x in range(Ns):
 			if refa[x]!=0:
@@ -239,6 +254,8 @@ def Vcool(z, v0, vc = 3.714e5, alpha = 4.015):
 	return ((alpha*vbd)**2 + vc**2)**0.5
 
 def stored(d, Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, rep = 'data/'):
+	if not os.path.exists(rep):
+		os.makedirs(rep)
 	out0 = [d['t'], d['z'], d['Tb'], d['Tdm'], d['v'], d['rho'], d['nb']]
 	out1 = [[d['rat'], d['rat0'], d['rat1'], d['rat2'], d['s'], d['Tvir'], d['TbV'], d['m']]]
 	base = 'M'+str(int(Mh/1e6 * 100)/100)+'_z'+str(zvir)+'_v'+str(int(v0*100)/100)
@@ -264,7 +281,7 @@ def readd(Mh = 1e6, zvir = 20, v0 = 30, mode = 0, Mdm = 0.3, sigma = 8e-20, dmax
 	d['m'] = M_T(d['TbV']/d['rat0'], zvir, dmax)
 	return d
 
-def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = 300, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 0.0, alpha = 3., sk = False, init = init):
+def Mth_z(z1, z2, nzb = 10, m1 = 1e2, m2 = 1e10, nmb = 100, mode = 0, z0 = z0_default, v0 = 30, Mdm = 0.3, sigma = 8e-20, rat = 1.0, dmax = 18*np.pi**2, Om = 0.315, h = 0.6774, fac = 1e-3, vmin = 0.0, alpha = 3., sk = False, init = init):
 	m0 = (m1*m2)**0.5
 	lz = np.linspace(z1, z2, nzb)
 	#lz = np.logspace(np.log10(z1), np.log10(z2), nzb)
@@ -404,8 +421,8 @@ def Nhalo(z, lm0, lv0, mode = 0, Mdm = 0.3e6, h = 0.6774, sigma = 30., vmax = 5.
 		
 
 if __name__=="__main__":
-	tag = 1
-	v0 = 60
+	tag = 0
+	v0 = 45
 	nbin = 32
 	ncore = 8
 	dmax = delta0 * 100
@@ -415,19 +432,20 @@ if __name__=="__main__":
 	alpha = 0.7
 	sk = False
 	#sk = True
-	rep = '100-sigma_ns/'
+	#rep = '100-sigma_test/'
+	rep = '100-sigma_test0/'
 	zvir = 20
 	if not os.path.exists(rep):
 		os.makedirs(rep)
 	init0 = initial(v0 = v0, mode = 0)
 	init1 = initial(v0 = v0, mode = 1)
 
-	"""
+	#"""
 	if tag==0:
 		d = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 0, rat = rat, alpha = alpha, init = init0)
 		d_ = Mth_z(zvir, 30, 2, v0 = v0, dmax = dmax, Mdm = 0.3, sigma = 8e-20, mode = 1, rat = rat, alpha = alpha, init = init1)
-		print('Mth at z = 20: {} 10^6 Msun (CDM)'.format(d[0][1]/1e6))
-		print('Mth at z = 20: {} 10^6 Msun (BDMS)'.format(d_[0][1]/1e6))
+		print('Mth at z = 20: {} 10^6 Msun (CDM)'.format(d[0][0]/1e6))
+		print('Mth at z = 20: {} 10^6 Msun (BDMS)'.format(d_[0][0]/1e6))
 		totxt(rep+'ref_'+str(v0)+'.txt', np.array(d).T, 0,0,0)
 		totxt(rep+'default_'+str(v0)+'.txt', np.array(d_).T,0,0,0)
 		X, Y, Mh, XH2, XHD, Xe, Tb, Vr = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, ncore = ncore, dmax = dmax, fac = fac, rat = rat, alpha = alpha, sk = sk, z = zvir)
@@ -468,7 +486,7 @@ if __name__=="__main__":
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
 	cb.set_label(r'$\log(M_{\mathrm{th}}\ [M_{\odot}])$',size=12)
-	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)-1e-2], colors='k')
+	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)], colors='k')
 	print(np.min(Mh[Mh!=np.nan]))
 	plt.contour(X, Y, np.log10(Mh), [np.log10(Mup(zvir))], colors='k', linestyles='--')
 	plt.contour(X, Y, np.log10(Mh), [0.99+np.log10(Mup(zvir))], colors='k', linestyles='-.')
@@ -560,14 +578,14 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep+'VrMap_v0_'+str(v0)+'.pdf')
 	plt.close()
-	"""
+	#"""
 
-	"""
+	#"""
 
 	#lm, lz, lxh2, lxhd = Mth_z(10, 100, 46, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'Mthz_CDM.txt',[lz, lm, lxh2, lxhd],0,0,0)
 
-	tag = 1
+	#tag = 0
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
@@ -654,23 +672,23 @@ if __name__=="__main__":
 	plt.savefig(rep+'Vr_z_'+str(v0)+'.pdf')
 	plt.close()
 	#plt.show()
-	"""
+	#"""
 	
-	"""
-	rep = 'Nhrat/'
-	if not os.path.exists(rep):
-		os.makedirs(rep)
+	#"""
+	#rep = 'Nhrat/'
+	#if not os.path.exists(rep):
+	#	os.makedirs(rep)
 	lls = ['-', '--', '-.', ':']*2
-	tag = 0
+	tag = 1
 	#rat = 10.
-	nz = 19
-	z1, z2 = 10, 100
+	nz = 3#19
+	z1, z2 = 20, 100
 
 	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'ref_z.txt', d0, 0, 0)
 
-	#lv = np.logspace(0, 3, 31)
-	lv = np.logspace(0, np.log10(150), 20)
+	lv = np.logspace(0, 3, 31)
+	#lv = np.logspace(0, np.log10(150), 20)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
 		#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = 0)
@@ -819,17 +837,21 @@ if __name__=="__main__":
 	tag = 0
 	m = 1e6
 	zvir = 20
-	v0 = 60
+	#v0 = 24
 	#init0 = initial(v0 = v0, mode = 0)
 	#init1 = initial(v0 = v0, mode = 1)
-	rep0 = 'example/'
+	#rep0 = 'example_test/'
+	rep0 = 'example_test0/'
+	drep = 'data0/'
+	if not os.path.exists(rep0):
+		os.makedirs(rep0)
 	#dmax = delta0 #18 * np.pi**2 * 1
 	if tag==0:
-		d0 = stored(evolve(m, zvir, mode = 0, dmax = dmax, v0 = v0, init = init0), m, zvir, mode = 0, v0 = v0)
-		d1 = stored(evolve(m, zvir, mode = 1, dmax = dmax, v0 = v0, init = init1), m, zvir, mode = 1, v0 = v0)
+		d0 = stored(evolve(m, zvir, mode = 0, dmax = dmax, v0 = v0, init = init0), m, zvir, mode = 0, v0 = v0, rep = drep)
+		d1 = stored(evolve(m, zvir, mode = 1, dmax = dmax, v0 = v0, init = init1), m, zvir, mode = 1, v0 = v0, rep = drep)
 	else:
-		d0 = readd(m, zvir, v0, mode = 0)
-		d1 = readd(m, zvir, v0, mode = 1)
+		d0 = readd(m, zvir, v0, mode = 0, rep = drep)
+		d1 = readd(m, zvir, v0, mode = 1, rep = drep)
 	
 	mgas = mmw()*PROTON
 	nIGM = [rhom(1/(1+z))*0.048/(0.315*mgas) for z in d0['z']]
@@ -852,6 +874,7 @@ if __name__=="__main__":
 	#plt.plot(d0['t'], d0['Tdm'], '-.', label=r'$T_{\chi}$, CDM')
 	plt.plot(d1['t'], d1['Tdm'], '-.', label=r'$T_{\chi}$, BDMS')
 	plt.plot(d1['t'], (d1['z']+1)*2.726, ':', label=r'$T_{cmb}$')
+	plt.plot(d1['t'], T_b(d1['z']), 'k-', label=r'$T_{b}(\mathrm{IGM})$, CDM', lw=0.5)
 	plt.xlabel(r'$t\ [\mathrm{Myr}]$')
 	plt.ylabel(r'$T\ [\mathrm{K}]$')
 	plt.legend()
@@ -886,7 +909,7 @@ if __name__=="__main__":
 	plt.yscale('log')
 	#plt.ylim(1e-5, 1e-3)
 	plt.tight_layout()
-	plt.savefig(rep0+'Example_xe_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'.pdf')
+	plt.savefig(rep0+'Example_xe_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
 
 	plt.figure()
@@ -909,7 +932,6 @@ if __name__=="__main__":
 	plt.savefig(rep0+'Example_X_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
 	#plt.show()
-	#"""
 
 	vIGM = [vbdm_z(z, v0)/1e5 for z in d0['z']]
 	plt.figure()
@@ -925,6 +947,7 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig(rep0+'Example_vbDM_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
+	#"""
 
 	"""
 	tag = 0

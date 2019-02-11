@@ -41,7 +41,8 @@ y0, yup = 1e5, 2e8
 x1, x2 = 15, 60
 lzt = np.linspace(x1, x2, 10)
 lt = [TZ(z)/(1e6*YR) for z in lzt]
-y1, y2, y3 = 1e6*(1.63+0.48)/2, 1e6*(1.21+3.93)/2, 1e6*(11.27+6.08)/2 #10**5.7, 10**6.09, 10**6.77
+#y1, y2, y3 = 1e6*(1.63+0.48)/2, 1e6*(1.21+3.93)/2, 1e6*(11.27+6.08)/2
+y1, y2, y3 = 0.48e6, 3.93e6, 6.08e6
 fig = plt.figure(figsize=(12,5))
 ax1 = fig.add_subplot(121)
 for v0, ls, lab in zip(lv[:2], lls[:2], lla[:2]):
@@ -94,9 +95,12 @@ plt.tight_layout()
 plt.savefig('Mth_z.pdf')
 plt.close()
 
+cons = 1.7e-17*GeV_to_mass * (SPEEDOFLIGHT/1e5)**4
+
 m = 1e6
 zvir = 20
-nbin = 28
+nbin = 32
+drep = 'data0/'
 #rep0 = 'example/'
 for v0 in lv:
 	X = np.array(retxt(rep+'X_'+str(v0)+'.txt',nbin,0,0))
@@ -114,16 +118,21 @@ for v0 in lv:
 	plt.contour(X, Y, np.log10(Mh), [np.log10(Mup(zvir))], colors='k', linestyles='--')
 	plt.contour(X, Y, np.log10(Mh), [0.99+np.log10(Mup(zvir))], colors='k', linestyles='-.')
 	plt.plot([0.3], [8e-20], '*', color='purple')
+	#lx = X[:,0]
+	#plt.plot(lx[lx>10], lx[lx>10]*cons, 'k:')
+	#plt.plot([10, 10], [10*cons, np.max(Y)], 'k:')
 	plt.xscale('log')
 	plt.yscale('log')
+	#plt.xlim(np.min(X), np.max(X))
+	#plt.ylim(np.min(Y), np.max(Y))
 	plt.xlabel(r'$m_{\chi}c^{2}\ [\mathrm{GeV}]$')
 	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
 	plt.tight_layout()
 	plt.savefig('MthMap_v0_'+str(v0)+'.pdf')
 	plt.close()
 
-	d0 = readd(m, zvir, v0, mode = 0)
-	d1 = readd(m, zvir, v0, mode = 1)
+	d0 = readd(m, zvir, v0, mode = 0, rep = drep)
+	d1 = readd(m, zvir, v0, mode = 1, rep = drep)
 
 	lzt = lzt = [10.4]+[20*i+20 for i in range(5)]+[150, 200, 250, 300]#[int(z) for z in np.geomspace(10.0,100.,6)]
 	loc = np.log10([TZ(z)/(1e6*YR) for z in lzt])
@@ -152,10 +161,6 @@ for v0 in lv:
 	plt.savefig('Example_T_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 	plt.close()
 
-#lv = [0 15, 30, 60]
-#for v0 in lv:
-#	d0 = readd(m, zvir, v0, mode = 0)
-#	d1 = readd(m, zvir, v0, mode = 1)
 	if v0==0:
 		continue
 	vIGM = [vbdm_z(z, v0)/1e5 for z in d0['z']]

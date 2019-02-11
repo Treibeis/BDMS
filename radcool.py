@@ -109,8 +109,8 @@ def LambdaH2(T, nh2, nh):
 @njit
 def cool(T, ntot, n, J_21, z, gamma, X, T0):
 	Tcmb = T0*(1+z)
-	if T<Tcmb:
-		return 0.0
+	#if T<Tcmb:
+	#	return 0.0
 	mH = PROTON*4.0/(1.0+3.0*X)
 	nh = n[0]+n[1]+n[2]+2.0*(n[3]+n[4])
 	ny = n
@@ -169,12 +169,13 @@ def cool(T, ntot, n, J_21, z, gamma, X, T0):
 		L[9]=1.e-42
 	L[10]=5.4e-36*(1.e0+z)**4*ny[5]*(T-Tcmb)
 	"""
-	L[0] = LambdaBre(T, n[1], n[7], n[8], n[5]) 
 	L[1] = LambdaIC(T, z, n[5]) - LambdaIC(Tcmb, z, n[5]) 
-	L[2] = LambdaHI(T, n[0], n[5]) + LambdaHII(T, n[1], n[5]) 
-	L[3] = LambdaHeI(T, n[6], n[5]) + LambdaHeII(T, n[7], n[5]) + LambdaHeIII(T, n[8], n[5]) 
-	LH2, LHD, LLiH = 0.0, 0.0, 0.0
-	if T<=2e4:
+	if 1: #T>=Tcmb:
+		L[0] = LambdaBre(T, n[1], n[7], n[8], n[5]) 
+		L[2] = LambdaHI(T, n[0], n[5]) + LambdaHII(T, n[1], n[5]) 
+		L[3] = LambdaHeI(T, n[6], n[5]) + LambdaHeII(T, n[7], n[5]) + LambdaHeIII(T, n[8], n[5]) 
+		LH2, LHD, LLiH = 0.0, 0.0, 0.0
+	if T<=2e4 and T>=Tcmb:
 		nhd = n[11]# 0.01*xnd 
 		LH2 = LambdaH2(T, n[3], n[0]) - LambdaH2(Tcmb, n[3], n[0]) 
 		LHD = LambdaHD(T, nhd, n[0], nh) - LambdaHD(Tcmb, nhd, n[0], nh) 

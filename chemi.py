@@ -154,7 +154,7 @@ def rates(J_21, T, nh, nh2, z, T0):
 		k[35] = 0.0
 
 	# CMB (GP98)
-	k[47] = 0 # 2.41e15*Tcmb**1.5 * np.exp(-39472/Tcmb)*8.76e-11*(1+z)**-0.58 # H + gamma = H+ + e-
+	k[47] = 0.0 #2.41e15*Tcmb**1.5 * np.exp(-39472/Tcmb)*8.76e-11*(1+z)**-0.58 # H + gamma = H+ + e-
 	k[48] = 1.1e-1*Tcmb**2.13* np.exp(-8823/Tcmb) # H- + gamma = H + e-
 	k[49] = 20*Tcmb**1.59* np.exp(-82000/Tcmb) # H2+ + gamma = H + H+
 
@@ -165,7 +165,7 @@ def rates(J_21, T, nh, nh2, z, T0):
 	return k
 
 #def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, nmax = 100, z  =5, T0 = 2.726):
-def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, nmax = 100, z  =5, T0 = 2.726):
+def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, Cr0, Ds0, z = 5, T0 = 2.726, nmax = 100):
 	total = 0
 	out = np.zeros(Ns,dtype='float')
 	dt_cum = 0.0
@@ -180,9 +180,9 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, nmax = 100, z 
 			dt = dt/2.0 #epsH*ny[5]/abs(Cr[5]-Ds[5]*ny[5])#
 			continue
 		#if ny[5]<=1e-4*xnh and T<2e4:
-			#for i in [3, 11]:
-			#	if (dt*abs(Cr0[i]-Ds0[i]*ny[i])>epsH*abs(ny[i])) and (ny[i]/xnh>1e-10):
-			#		dt = max(epsH*abs(ny[i]/(Cr0[i]-Ds0[i]*ny[i])),dt0/nmax) #dt/2.0
+		for i in [3, 11]:
+			if (dt*abs(Cr0[i]-Ds0[i]*ny[i])>epsH*abs(ny[i])) and (ny[i]/xnh>1e-10):
+				dt = max(epsH*abs(ny[i]/(Cr0[i]-Ds0[i]*ny[i])),dt0/nmax) #dt/2.0
 		if dt>1.e5*3.14e7:
 			dt = 1.e5*3.14e7
 		if dt + dt_cum>dt0:
@@ -308,6 +308,6 @@ def chemistry1(T, nin, dt0, epsH, J_21, Ns, xnh, xnhe, xnd, xnli, nmax = 100, z 
 		dt = dt0
 		total += 1
 	tform, tdest = 0.0, 0.0
-	return [ny, dt_cum, total] #, tform, tdest, Cr, Ds]
+	return [ny, dt_cum, total, tform, tdest, Cr, Ds]
 
 
