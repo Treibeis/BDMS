@@ -3,6 +3,9 @@ import matplotlib
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 
+llogm = np.array([-4, -3, -2, -1.5, -1, -0.75, -0.5, -0.25, 0, 0.1, 0.2, 0.3, 0.43, 0.5, 0.6])
+llogs = np.array([-0.45, -0.445, -0.44, -0.41, -0.35, -0.25, -0.15, 0, 0.2, 0.3, 0.5, 0.7, 1., 1.25, 4.])-20.
+
 n = 1
 rhob = n*1.22*PROTON
 rhodm = rhob * (0.315-0.048)/0.048
@@ -38,12 +41,13 @@ lla = [r'$v_{b\chi,0}=0$', r'$v_{b\chi,0}=0.8\sigma_{rms}$', r'$v_{b\chi,0}=1.5\
 #rep = '100-sigma_ns/'
 rep = '100-sigma_test0/'
 
-y0, yup = 1e5, 2e8
+#y0, yup = 5e4, 2e8
+y0, yup = 5e4, 1e8
 x1, x2 = 15, 60
 lzt = np.linspace(x1, x2, 10)
 lt = [TZ(z)/(1e6*YR) for z in lzt]
 #y1, y2, y3 = 1e6*(1.63+0.48)/2, 1e6*(1.21+3.93)/2, 1e6*(11.27+6.08)/2
-y1, y2, y3 = 0.48e6, 3.93e6, 6.08e6
+y1, y2, y3 = (1.63*0.48)**0.5*1e6, 1e6*(1.21*3.93)**0.5, 1e6*(11.27*6.08)**0.5
 fig = plt.figure(figsize=(12,5))
 ax1 = fig.add_subplot(121)
 for v0, ls, lab in zip(lv[:2], lls[:2], lla[:2]):
@@ -70,6 +74,7 @@ ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
 ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
 plt.xlim(x1, x2)
 
+y0, yup = 1e5, 3e8
 ax1 = fig.add_subplot(122)
 for v0, ls, lab in zip(lv[2:], lls[2:], lla[2:]):
 	lm_, lz_, lxh2_, lxhd_, lxe_, lTb_, lvr_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',7,0,0))
@@ -114,11 +119,21 @@ for v0 in lv:
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
 	cb.set_label(r'$\log(\tilde{M}_{\mathrm{th}}\ [M_{\odot}])$',size=12)
-	plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)+2e-2], colors='k')
+	cls = [r'$\tilde{M}_{\mathrm{th}}(\mathrm{CDM})$', r'$M_{2}$', r'$10M_{2}$']
+	c1 = plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)-1e-2*(v0==0)+1e-2*(v0>40)], colors='k')
 	#print(np.min(Mh[Mh!=np.nan]))
-	plt.contour(X, Y, np.log10(Mh), [np.log10(Mup(zvir))], colors='k', linestyles='--')
-	plt.contour(X, Y, np.log10(Mh), [0.99+np.log10(Mup(zvir))], colors='k', linestyles='-.')
-	plt.plot([0.3], [8e-20], '*', color='purple')
+	c2 = plt.contour(X, Y, np.log10(Mh), [np.log10(Mup(zvir))], colors='k', linestyles='--')
+	c3 = plt.contour(X, Y, np.log10(Mh), [0.99+np.log10(Mup(zvir))], colors='k', linestyles='-.')
+	for l in c1.collections:
+		l.set_label(cls[0])
+	for l in c2.collections:
+		l.set_label(cls[1])
+	for l in c3.collections:
+		l.set_label(cls[2])
+	plt.plot([0.3], [8e-20], '*', color='purple', label='Fiducial model')
+	plt.plot(10**llogm, 10**llogs, 'k:', label=r'$\langle\delta T\rangle=-300$ mK')
+	if v0==0:
+		plt.legend()
 	#lx = X[:,0]
 	#plt.plot(lx[lx>10], lx[lx>10]*cons, 'k:')
 	#plt.plot([10, 10], [10*cons, np.max(Y)], 'k:')
@@ -307,11 +322,15 @@ for i in range(nz):
 	#print('Halo number ratio = {}, at z  = {}'.format(Nh1/Nh0, lz[i]))
 	lrat.append(Nh1/Nh0)
 totxt('Nh_ratio.txt',[lrat, lz],0,0,0)
+lrat = np.array(lrat)
+#lrat = (lrat<0)*np.min(lrat[lrat>0]) + lrat*(lrat>0)
+#print(lrat)
 
-ydown, yup = 5e-2, 1e1
+ydown, yup = 1e-1, 1e1
+x1, x2 = 15, 60
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-plt.plot(lz, lrat)
+plt.plot(lz[lrat>0], lrat[lrat>0])
 plt.xlabel(r'$z_{vir}$')
 plt.ylabel(r'$\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{CDM})$')
 plt.fill_between([15,20],[ydown,ydown],[yup,yup], facecolor='gray', label='EDGES')
@@ -319,10 +338,10 @@ plt.plot([15, 100], [1, 1], 'k--', lw = 0.5)
 #plt.xscale('log')
 plt.legend()
 plt.yscale('log')
-plt.xlim(15, 60)
+plt.xlim(x1, x2)
 plt.ylim(ydown, yup)
 ax2 = ax1.twiny()
-lzt = np.linspace(15, 60, 10)
+lzt = np.linspace(x1, x2, 10)
 lt = [TZ(z)/(1e6*YR) for z in lzt]
 ax2.set_xticks(lzt)
 ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
