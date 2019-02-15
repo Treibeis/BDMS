@@ -48,7 +48,7 @@ lzt = np.linspace(x1, x2, 10)
 lt = [TZ(z)/(1e6*YR) for z in lzt]
 #y1, y2, y3 = 1e6*(1.63+0.48)/2, 1e6*(1.21+3.93)/2, 1e6*(11.27+6.08)/2
 y1, y2, y3 = (1.63*0.48)**0.5*1e6, 1e6*(1.21*3.93)**0.5, 1e6*(11.27*6.08)**0.5
-fig = plt.figure(figsize=(12,5))
+fig = plt.figure(figsize=(12,5.5))
 ax1 = fig.add_subplot(121)
 for v0, ls, lab in zip(lv[:2], lls[:2], lla[:2]):
 	lm_, lz_, lxh2_, lxhd_, lxe_, lTb_, lvr_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',7,0,0))
@@ -70,7 +70,7 @@ plt.xlim(x1, x2)
 plt.ylim(y0, yup)
 ax2 = ax1.twiny()
 ax2.set_xticks(lzt)
-ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
+ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=14)
 ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
 plt.xlim(x1, x2)
 
@@ -94,7 +94,7 @@ plt.xlim(x1, x2)
 plt.ylim(y0, yup)
 ax2 = ax1.twiny()
 ax2.set_xticks(lzt)
-ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
+ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=14)
 ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
 plt.xlim(x1, x2)
 plt.tight_layout()
@@ -114,11 +114,12 @@ for v0 in lv:
 	Mh = np.array(retxt(rep+'Mh_'+str(v0)+'.txt',nbin,0,0))
 	refMh, z, xH2r, xHDr, xer, Tbr, vrr = retxt(rep+'ref_'+str(v0)+'.txt',1,0,0)[0]
 	plt.figure()
+	ax = plt.subplot(111)
 	ctf = plt.contourf(X, Y, np.log10(Mh), np.linspace(5.5, 8, 2*nbin), cmap=plt.cm.rainbow)#cm.Blues)
 	for c in ctf.collections:
 		c.set_edgecolor('face')
 	cb = plt.colorbar()
-	cb.set_label(r'$\log(\tilde{M}_{\mathrm{th}}\ [M_{\odot}])$',size=12)
+	cb.set_label(r'$\log(\tilde{M}_{\mathrm{th}}\ [M_{\odot}])$',size=14)
 	cls = [r'$\tilde{M}_{\mathrm{th}}(\mathrm{CDM})$', r'$M_{2}$', r'$10M_{2}$']
 	c1 = plt.contour(X, Y, np.log10(Mh), [np.log10(refMh)-1e-2*(v0==0)+1e-2*(v0>40)], colors='k')
 	#print(np.min(Mh[Mh!=np.nan]))
@@ -130,10 +131,13 @@ for v0 in lv:
 		l.set_label(cls[1])
 	for l in c3.collections:
 		l.set_label(cls[2])
-	plt.plot([0.3], [8e-20], '*', color='purple', label='Fiducial model')
+	plt.plot([0.3], [8e-20], '*', color='purple', label='Fiducial')
+	plt.plot([1e-3], [1e-18], 'o', color='purple', label='Cold')
+	plt.plot([10.], [1e-20], '^', color='purple', label='Warm')
 	plt.plot(10**llogm, 10**llogs, 'k:', label=r'$\langle\delta T\rangle=-300$ mK')
 	if v0==0:
 		plt.legend()
+	ax.tick_params(axis='x', which='minor', bottom=True)
 	#lx = X[:,0]
 	#plt.plot(lx[lx>10], lx[lx>10]*cons, 'k:')
 	#plt.plot([10, 10], [10*cons, np.max(Y)], 'k:')
@@ -141,6 +145,7 @@ for v0 in lv:
 	plt.yscale('log')
 	#plt.xlim(np.min(X), np.max(X))
 	#plt.ylim(np.min(Y), np.max(Y))
+	plt.xticks(np.logspace(-4, 2, 7))
 	plt.xlabel(r'$m_{\chi}c^{2}\ [\mathrm{GeV}]$')
 	plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
 	plt.tight_layout()
@@ -150,7 +155,7 @@ for v0 in lv:
 	d0 = readd(m, zvir, v0, mode = 0, rep = drep)
 	d1 = readd(m, zvir, v0, mode = 1, rep = drep)
 
-	lzt = lzt = [10.4]+[20*i+20 for i in range(5)]+[150, 200, 250, 300]#[int(z) for z in np.geomspace(10.0,100.,6)]
+	lzt = lzt = [10.4]+[20*i+20 for i in range(5)]+[150, 200, 300]#[int(z) for z in np.geomspace(10.0,100.,6)]
 	loc = np.log10([TZ(z)/(1e6*YR) for z in lzt])
 
 	fig = plt.figure()
@@ -172,7 +177,7 @@ for v0 in lv:
 	ax2 = ax1.twiny()
 	#ax2.set_xscale('log')
 	ax2.set_xticks(loc)
-	ax2.set_xticklabels([str(int(z)) for z in lzt],size=11)
+	ax2.set_xticklabels([str(int(z)) for z in lzt],size=14)
 	ax2.set_xlabel(r'$z$')
 	ax2.set_xlim(np.log10(ax1.get_xlim()))
 	plt.tight_layout()
@@ -199,7 +204,7 @@ for v0 in lv:
 	ax2 = ax1.twiny()
 	#ax2.set_xscale('log')
 	ax2.set_xticks(loc)
-	ax2.set_xticklabels([str(int(z)) for z in lzt],size=11)
+	ax2.set_xticklabels([str(int(z)) for z in lzt],size=14)
 	ax2.set_xlabel(r'$z$')
 	ax2.set_xlim(np.log10(ax1.get_xlim()))
 	plt.tight_layout()
@@ -225,7 +230,7 @@ ax2 = ax1.twiny()
 #loc = np.log10([TZ(z)/(1e6*YR) for z in lzt])
 ax2.set_xlim(np.log10(ax1.get_xlim()))
 ax2.set_xticks(loc)
-ax2.set_xticklabels([str(int(z)) for z in lzt],size=11)
+ax2.set_xticklabels([str(int(z)) for z in lzt],size=14)
 ax2.set_xlabel(r'$z$')
 #ax2.set_xscale('log')
 plt.tight_layout()
@@ -233,7 +238,7 @@ plt.savefig('Example_n_t_m6_'+str(m/1e6)+'_z_'+str(zvir)+'_v0_'+str(v0)+'.pdf')
 plt.close()
 #"""
 
-lv = retxt(rep+'vbase.txt',1,0,0)[0] #np.logspace(0, 3, 31)
+lv = np.array(retxt(rep+'vbase.txt',1,0,0)[0])/30 #np.logspace(0, 3, 31)
 vd, vu = np.min(lv), np.max(lv)
 lz = retxt(rep+'zbase.txt',1,0,0)[0]
 nz = len(lz)
@@ -250,11 +255,11 @@ y1, y2 = 1e4, 3e9
 plt.figure()
 a = [plt.plot(lv, lm[i], label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, BDMS', ls = lls[i], color='r', lw = 2) for i in range(nz)]
 a = [plt.plot(lv, lm_[i], label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, CDM',ls=lls[i], color='b', lw=1) for i in range(nz)]
-plt.plot([30,30],[y1,y2], 'k', lw=0.5)
-plt.plot([60,60],[y1,y2], 'k', lw=0.5)
-plt.plot([90,90],[y1,y2], 'k', lw=0.5)
+plt.plot([1,1],[y1,y2], 'k', lw=0.5)
+plt.plot([2,2],[y1,y2], 'k', lw=0.5)
+plt.plot([3,3],[y1,y2], 'k', lw=0.5)
 plt.legend(loc=2)
-plt.xlabel(r'$v_{b\chi,0}\ [\mathrm{km\ s^{-1}}]$')
+plt.xlabel(r'$v_{b\chi,0}\ [\sigma_{rms}]$')#[\mathrm{km\ s^{-1}}]$')
 plt.ylabel(r'$\tilde{M}_{\mathrm{th}}\ [M_{\odot}]$')
 plt.xscale('log')
 plt.yscale('log')
@@ -268,11 +273,11 @@ y1, y2 = 4e-6, 7e-4
 plt.figure()
 a = [plt.plot(lv, lxh2[i], label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, BDMS', ls = lls[i], color='r', lw = 2) for i in range(nz)]
 a = [plt.plot(lv, lxh2_[i], label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, CDM',color='b',ls=lls[i],lw=1) for i in range(nz)]
-plt.plot([30,30],[y1,y2], 'k', lw=0.5)
-plt.plot([60,60],[y1,y2], 'k', lw=0.5)
-plt.plot([90,90],[y1,y2], 'k', lw=0.5)
+plt.plot([1,1],[y1,y2], 'k', lw=0.5)
+plt.plot([2,2],[y1,y2], 'k', lw=0.5)
+plt.plot([3,3],[y1,y2], 'k', lw=0.5)
 plt.legend(loc=3)
-plt.xlabel(r'$v_{b\chi,0}\ [\mathrm{km\ s^{-1}}]$')
+plt.xlabel(r'$v_{b\chi,0}\ [\sigma_{rms}]$')#[\mathrm{km\ s^{-1}}]$')
 plt.ylabel(r'$x_{\mathrm{H_{2}}}$')
 plt.xscale('log')
 plt.yscale('log')
@@ -287,11 +292,11 @@ plt.figure()
 a = [plt.plot(lv, lvr[i]/1e5, label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, BDMS', ls = lls[i], color='r', lw=2) for i in range(nz)]
 	#a = [plt.plot(lv, [vbdm_z(zr[i], v)/1e5  for v in lv], label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, CDM',color='k',ls=lls[i],lw=0.5) for i in range(nz)]
 a = [plt.plot(lv, lvr_[i]/1e5, label=r'$z_{vir}='+str(int(lz[i]*100)/100)+'$, CDM',color='b',ls=lls[i],lw=1) for i in range(nz)]
-plt.plot([30,30],[y1,y2], 'k', lw=0.5)
-plt.plot([60,60],[y1,y2], 'k', lw=0.5)
-plt.plot([90,90],[y1,y2], 'k', lw=0.5)
+plt.plot([1,1],[y1,y2], 'k', lw=0.5)
+plt.plot([2,2],[y1,y2], 'k', lw=0.5)
+plt.plot([3,3],[y1,y2], 'k', lw=0.5)
 plt.legend()
-plt.xlabel(r'$v_{b\chi,0}\ [\mathrm{km\ s^{-1}}]$')
+plt.xlabel(r'$v_{b\chi,0}\ [\sigma_{rms}]$')#[\mathrm{km\ s^{-1}}]$')
 plt.ylabel(r'$v_{b\chi,V}\ [\mathrm{km\ s^{-1}}]$')
 plt.xscale('log')
 plt.yscale('log')
@@ -302,39 +307,86 @@ plt.savefig('Vr_v.pdf')
 plt.close()
 #"""
 
+nbin = 32
+z = 20
 rep = 'Nhrat/'
-lv = retxt(rep+'vbase.txt',1,0,0)[0] #np.logspace(0, 3, 31)
-vd, vu = np.min(lv), np.max(lv)
-lz = retxt(rep+'zbase.txt',1,0,0)[0]
-nz = len(lz)
+d0 = retxt(rep+'nh_ref_z'+str(z)+'.txt',1,0,0)[0]
+X = np.array(retxt(rep+'X_z'+str(z)+'.txt',nbin,0,0))
+Y = np.array(retxt(rep+'Y_z'+str(z)+'.txt',nbin,0,0))
+nh = np.array(retxt(rep+'nh_z'+str(z)+'.txt',nbin,0,0))
+lowb = 1e-8
+fh = nh/d0
+fh = fh + lowb*(fh<lowb)
 
-lm = np.array(retxt(rep+'Mth_v.txt',nz,0,0))
-lxh2 = np.array(retxt(rep+'xh2_v.txt',nz,0,0))
-lvr = np.array(retxt(rep+'vr_v.txt',nz,0,0))
-lm_ = np.array(retxt(rep+'Mth_v0.txt',nz,0,0))
-lxh2_ = np.array(retxt(rep+'xh2_v0.txt',nz,0,0))
-lvr_ = np.array(retxt(rep+'vr_v0.txt',nz,0,0))
+from matplotlib.ticker import MultipleLocator
 
-lrat = []
-for i in range(nz):
-	Nh0 = Nhalo(lz[i], lm_[i], lv, 0)
-	Nh1 = Nhalo(lz[i], lm[i], lv, 1)
-	#print('Halo number ratio = {}, at z  = {}'.format(Nh1/Nh0, lz[i]))
-	lrat.append(Nh1/Nh0)
-totxt('Nh_ratio.txt',[lrat, lz],0,0,0)
-lrat = np.array(lrat)
-#lrat = (lrat<0)*np.min(lrat[lrat>0]) + lrat*(lrat>0)
-#print(lrat)
+plt.figure()
+ax = plt.subplot(111)
+plt.minorticks_on() 
+ctf = plt.contourf(X, Y, np.log10(fh), np.linspace(-8, 1.05, 2*nbin), cmap=plt.cm.bwr)
+for c in ctf.collections:
+	c.set_edgecolor('face')
+cb = plt.colorbar()
+cb.set_label(r'$\log(f_{n_{h}})$',size=14)
+ct = plt.contour(X, Y, np.log10(fh), [-3., -2., -1., 0.0], colors='k')
+#plt.clabel(ct, fontsize=12, inline=1)
+plt.plot([0.3], [8e-20], '*', color='purple', label='Fiducial')
+plt.plot([1e-3], [1e-18], 'o', color='purple', label='Cold')
+plt.plot([10.], [1e-20], '^', color='purple', label='Warm')
+plt.plot(10**llogm, 10**llogs, 'k:', label=r'$\langle\delta T\rangle=-300$ mK')
+plt.legend()
+ml = MultipleLocator(5)
+ax.tick_params(axis='x', which='minor', bottom=True)
+ax.xaxis.set_minor_locator(ml)
+plt.xscale('log')
+plt.yscale('log')
+plt.xticks(np.logspace(-4, 2, 7))
+plt.xlabel(r'$m_{\chi}c^{2}\ [\mathrm{GeV}]$')
+plt.ylabel(r'$\sigma_{1}\ [\mathrm{cm^{2}}]$')
+plt.tight_layout()
+plt.savefig('fhMap_z'+str()+'.pdf')
+plt.close()
 
-ydown, yup = 1e-1, 1e1
-x1, x2 = 15, 60
+def Nhrat(rep = 'Nhrat/', mode=0, Mdm = 0.3):
+	if mode==1:
+		return np.array(retxt(rep+'Nh_ratio.txt',2,0,0))
+	lv = retxt(rep+'vbase.txt',1,0,0)[0] #np.logspace(0, 3, 31)
+	vd, vu = np.min(lv), np.max(lv)
+	lz = np.array(retxt(rep+'zbase.txt',1,0,0)[0])
+	nz = len(lz)
+
+	lm = np.array(retxt(rep+'Mth_v.txt',nz,0,0))
+	lxh2 = np.array(retxt(rep+'xh2_v.txt',nz,0,0))
+	lvr = np.array(retxt(rep+'vr_v.txt',nz,0,0))
+	lm_ = np.array(retxt(rep+'Mth_v0.txt',nz,0,0))
+	lxh2_ = np.array(retxt(rep+'xh2_v0.txt',nz,0,0))
+	lvr_ = np.array(retxt(rep+'vr_v0.txt',nz,0,0))
+
+	lrat = []
+	for i in range(nz):
+		Nh0 = Nhalo(lz[i], lm_[i], lv, 0, Mdm)
+		Nh1 = Nhalo(lz[i], lm[i], lv, 1, Mdm)
+		#print('Halo number ratio = {}, at z  = {}'.format(Nh1/Nh0, lz[i]))
+		lrat.append(Nh1/Nh0)
+	totxt(rep+'Nh_ratio.txt',[lrat, lz],0,0,0)
+	lrat = np.array(lrat)
+	return [lrat, lz]
+
+lrat, lz = Nhrat('Nhrat/',1)
+lrat1, lz1 = Nhrat('Nhrat_1/',1,1e-3)
+lrat2, lz2 = Nhrat('Nhrat_2/',1,10.)
+
+ydown, yup = 1e-7, 1e1
+x1, x2 = 10, 60
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-plt.plot(lz[lrat>0], lrat[lrat>0])
+plt.plot(lz[lrat>0], lrat[lrat>0], label='Fiducial')
+plt.plot(lz1[lrat1>0], lrat1[lrat1>0], '--', label='Cold')
+plt.plot(lz2[lrat2>0], lrat2[lrat2>0], '-.', label='Warm')
 plt.xlabel(r'$z_{vir}$')
 plt.ylabel(r'$\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{BDMS})/\bar{n}_{h}^{\mathrm{Pop III}}(\mathrm{CDM})$')
 plt.fill_between([15,20],[ydown,ydown],[yup,yup], facecolor='gray', label='EDGES')
-plt.plot([15, 100], [1, 1], 'k--', lw = 0.5)
+plt.plot([x1, x2], [1, 1], 'k:', lw = 0.5)
 #plt.xscale('log')
 plt.legend()
 plt.yscale('log')
@@ -344,10 +396,11 @@ ax2 = ax1.twiny()
 lzt = np.linspace(x1, x2, 10)
 lt = [TZ(z)/(1e6*YR) for z in lzt]
 ax2.set_xticks(lzt)
-ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=11)
+ax2.set_xticklabels([str(int(t*10)/10) for t in lt],size=14)
 ax2.set_xlabel(r'$t\ [\mathrm{Myr}]$')
 ax2.set_xlim(ax1.get_xlim())
 plt.tight_layout()
 plt.savefig('Nh_rat.pdf')
 #plt.show()
 plt.close()
+

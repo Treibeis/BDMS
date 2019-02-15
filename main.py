@@ -364,7 +364,7 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 20, dmax = 200, nbin 
 	lm = np.logspace(m1, m2, nbin)
 	ls = np.logspace(s1, s2, nbin)
 	X, Y = np.meshgrid(lm, ls, indexing = 'ij')
-	mmax = Mup(z)*10
+	#mmax = Mup(z)*10
 	lMh = np.zeros(X.shape)
 	lXH2 = np.zeros(X.shape)
 	lXHD = np.zeros(X.shape)
@@ -406,21 +406,24 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 20, dmax = 200, nbin 
 def vdis(v, sigma = 30.):
 	return v**2 * np.exp(-v**2*1.5/sigma**2)
 
-def Nhalo(z, lm0, lv0, mode = 0, Mdm = 0.3e6, h = 0.6774, sigma = 30., vmax = 5.):
+def Nhalo(z, lm0, lv0, mode = 0, Mdm = 0.3, h = 0.6774, sigma = 30., vmax = 5.):
 	sel = lv0 < vmax*sigma
 	lm = lm0[sel]
 	lv = lv0[sel]
 	lw = vdis(lv, sigma)
+	Mmin = min(np.log10(np.min(lm*h))-1, np.log10(Mup(z))-1)
 	if mode == 0:
 		hmf_ = hmf.MassFunction()
-		hmf_.update(n=0.966, sigma_8=0.829,cosmo_params={'Om0':0.315,'H0':67.74},Mmin=np.log10(np.min(lm*h))-1,Mmax=np.log10(Mup(z))+2,z=z)
+		hmf_.update(n=0.966, sigma_8=0.829,cosmo_params={'Om0':0.315,'H0':67.74},Mmin=Mmin,Mmax=np.log10(Mup(z))+2,z=z)
 	else:
-		hmf_ = hmf.wdm.MassFunctionWDM(wdm_mass=Mdm)
-		hmf_.update(n=0.966, sigma_8=0.829,cosmo_params={'Om0':0.315,'H0':67.74},Mmin=np.log10(np.min(lm*h))-1,Mmax=np.log10(Mup(z))+2,z=z)
+		hmf_ = hmf.wdm.MassFunctionWDM(wdm_mass=Mdm*1e6)
+		hmf_.update(n=0.966, sigma_8=0.829,cosmo_params={'Om0':0.315,'H0':67.74},Mmin=Mmin,Mmax=np.log10(Mup(z))+2,z=z)
 	intm = np.log10(hmf_.m/h)
 	intn = np.log10(hmf_.ngtm)
 	nm = interp1d(intm, intn)
-	out = (10**nm(np.log10(lm))- 10**nm(np.log10(Mup(z)))) * lw
+	lnpopIII = (10**nm(np.log10(lm))- 10**nm(np.log10(Mup(z))))
+	lnpopIII = lnpopIII * (lnpopIII>0)
+	out = lnpopIII * lw
 	return np.trapz(out, lv)/np.trapz(lw, lv)
 		
 
@@ -687,28 +690,38 @@ if __name__=="__main__":
 	lls = ['-', '--', '-.', ':']*2
 	tag = 0
 	#rat = 10.
-	nz = 19
-	z1, z2 = 10, 100
+	nz = 51
+	z1, z2 = 10, 60
+	Mdm =  0.3
+	sigma = 8e-20
+	#Mdm = 1e-3 
+	#sigma = 1e-18 
+	#Mdm = 10.
+	#sigma = 1e-20
 
 	#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac)
 	#totxt(rep+'ref_z.txt', d0, 0, 0)
 
 	#lv = np.logspace(0, 3, 31)
-	lv = np.logspace(0, np.log10(150), 20)
+	lv = np.linspace(0, 150, 16)
+	#lv = np.logspace(0, np.log10(150), 20)
 	vd, vu = np.min(lv), np.max(lv)
 	if tag==0:
-		#d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = 0)
-		#totxt(rep+'ref_z.txt', d0, 0, 0)
+		d0 = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = 0)
+		totxt(rep+'ref_z.txt', d0, 0, 0)
 		out = []
 		out_ = []
 		for v in lv:
 			initv0 = initial(v0 = v, mode = 0)
-			initv1 = initial(v0 = v, mode = 1)
-			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = initv1)
-			d_ = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = v, alpha = alpha, sk = sk, init = initv0)
+			initv1 = initial(v0 = v, mode = 1, Mdm = Mdm, sigma = sigma)
+			d = Mth_z(z1, z2, nz, mode = 1, v0 = v, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = initv1, Mdm = Mdm, sigma = sigma)
+			d_ = Mth_z(z1, z2, nz, mode = 0, rat = rat, dmax = dmax, fac = fac, v0 = v, alpha = alpha, sk = sk, init = initv0, Mdm = Mdm, sigma = sigma)
 			out.append(d)
 			out_.append(d_)
 		lz = d[1]
+
+		totxt(rep+'zbase.txt',[lz],0,0,0)
+		totxt(rep+'vbase.txt',[lv],0,0,0)
 
 		lm = [[x[0][i] for x in out] for i in range(len(d[0]))]
 		lxh2 = [[x[2][i] for x in out] for i in range(len(d[0]))]
@@ -717,13 +730,6 @@ if __name__=="__main__":
 		lTb = [[x[5][i] for x in out] for i in range(len(d[0]))]
 		lvr = [[x[6][i] for x in out] for i in range(len(d[0]))]
 
-		lm_ = [[x[0][i] for x in out_] for i in range(len(d[0]))]
-		lxh2_ = [[x[2][i] for x in out_] for i in range(len(d[0]))]
-		lxhd_ = [[x[3][i] for x in out_] for i in range(len(d[0]))]
-		lxe_ = [[x[4][i] for x in out_] for i in range(len(d[0]))]
-		lTb_ = [[x[5][i] for x in out_] for i in range(len(d[0]))]
-		lvr_ = [[x[6][i] for x in out_] for i in range(len(d[0]))]
-
 		totxt(rep+'Mth_v.txt',lm,0,0,0)
 		totxt(rep+'xh2_v.txt',lxh2,0,0,0)
 		totxt(rep+'xhd_v.txt',lxhd,0,0,0)
@@ -731,15 +737,19 @@ if __name__=="__main__":
 		totxt(rep+'Tb_v.txt',lTb,0,0,0)
 		totxt(rep+'vr_v.txt',lvr,0,0,0)
 
+		lm_ = [[x[0][i] for x in out_] for i in range(len(d[0]))]
+		lxh2_ = [[x[2][i] for x in out_] for i in range(len(d[0]))]
+		lxhd_ = [[x[3][i] for x in out_] for i in range(len(d[0]))]
+		lxe_ = [[x[4][i] for x in out_] for i in range(len(d[0]))]
+		lTb_ = [[x[5][i] for x in out_] for i in range(len(d[0]))]
+		lvr_ = [[x[6][i] for x in out_] for i in range(len(d[0]))]
+
 		totxt(rep+'Mth_v0.txt',lm_,0,0,0)
 		totxt(rep+'xh2_v0.txt',lxh2_,0,0,0)
 		totxt(rep+'xhd_v0.txt',lxhd_,0,0,0)
 		totxt(rep+'xe_v0.txt',lxe_,0,0,0)
 		totxt(rep+'Tb_v0.txt',lTb_,0,0,0)
 		totxt(rep+'vr_v0.txt',lvr_,0,0,0)
-
-		totxt(rep+'zbase.txt',[lz],0,0,0)
-		totxt(rep+'vbase.txt',[lv],0,0,0)
 
 	#d0 = retxt(rep+'ref_z.txt',7,0,0)
 	#mr, zr, xh2r, xhdr, xer, Tbr, vrr = d0
