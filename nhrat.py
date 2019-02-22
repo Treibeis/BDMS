@@ -30,14 +30,14 @@ def nh_para(m1 = -4, m2 = 2, s1 = -1, s2 = 4, z = 20, dmax = 2e4, nbin = 2, fac 
 	ls = np.logspace(s1, s2, nbin)
 	X, Y = np.meshgrid(lm, ls, indexing = 'ij')
 	#lMh = np.zeros(X.shape)
-	lMh = 0.0 #np.array([[nh_z(z, Mdm = m, sigma = s*1e-20, mode=1, rat=rat, fac=fac, dmax=dmax, alpha=alpha, sk=sk, ncore=ncore) for m in lm] for s in ls]).T
+	lMh = np.array([[nh_z(z, Mdm = m, sigma = s*1e-20, mode=1, rat=rat, fac=fac, dmax=dmax, alpha=alpha, sk=sk, ncore=ncore) for m in lm] for s in ls]).T
 	return X, Y*1e-20, lMh
 
 if __name__ == '__main__':
 	rep = 'Nhrat/'
 	ncore = 8
 	nbin = 32
-	z = 20
+	z = 25
 	dmax = delta0 * 100
 	rat = 1.
 	fac = 1e-3
@@ -48,13 +48,13 @@ if __name__ == '__main__':
 	d0 = nh_z(z=z, dmax=dmax, fac=fac, rat=rat, alpha=alpha, sk=sk, ncore=ncore)
 	totxt(rep+'nh_ref_z'+str(z)+'.txt',[[d0]],0,0,0)
 	X, Y, Mh = nh_para(z=z, dmax=dmax, nbin=nbin, fac=fac, rat=rat, alpha=alpha, sk=sk, ncore=ncore)
-	#totxt(rep+'nh_z'+str(z)+'.txt',Mh,0,0,0)
+	totxt(rep+'nh_z'+str(z)+'.txt',Mh,0,0,0)
 	totxt(rep+'X_z'+str(z)+'.txt',X,0,0,0)
 	totxt(rep+'Y_z'+str(z)+'.txt',Y,0,0,0)
-	lowb = 1e-7
+	lowb = 1e-8
 	fh = Mh/d0
 	fh = fh + lowb*(fh<lowb)
-	plt.contourf(X, Y, np.log10(fh))
+	plt.contourf(X, Y, np.log10(fh), nbin*2)
 	cb = plt.colorbar()
 	cb.set_label(r'$f_{h}$',size=14)
 	plt.xscale('log')

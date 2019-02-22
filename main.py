@@ -429,8 +429,8 @@ def Nhalo(z, lm0, lv0, mode = 0, Mdm = 0.3, h = 0.6774, sigma = 30., vmax = 5.):
 
 if __name__=="__main__":
 	tag = 1
-	v0 = 24
-	nbin = 32
+	v0 = 60
+	nbin = 64
 	ncore = 8
 	dmax = delta0 * 100
 	rat = 1.
@@ -598,8 +598,8 @@ if __name__=="__main__":
 	#v0 = 0.1
 	#rat = 10.
 	if tag==0:
-		d_ = Mth_z(10, 100, 31, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = init1)
-		d = Mth_z(10, 100, 31, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = init0)
+		d_ = Mth_z(10, 60, 51, mode = 1, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = init1)
+		d = Mth_z(10, 60, 51, mode = 0, v0 = v0, rat = rat, dmax = dmax, fac = fac, alpha = alpha, sk = sk, init = init0)
 		totxt(rep+'Mthz_CDM_'+str(v0)+'.txt',d,0,0,0)
 		totxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',d_,0,0,0)
 	lm_, lz_, lxh2_, lxhd_, lxe_, lTb_, lvr_ = np.array(retxt(rep+'Mthz_BDMS_'+str(v0)+'.txt',7,0,0))
@@ -688,7 +688,7 @@ if __name__=="__main__":
 	if not os.path.exists(rep):
 		os.makedirs(rep)
 	lls = ['-', '--', '-.', ':']*2
-	tag = 0
+	tag = 1
 	#rat = 10.
 	nz = 51
 	z1, z2 = 10, 60
