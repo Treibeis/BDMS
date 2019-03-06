@@ -5,6 +5,9 @@ from scipy.integrate import odeint, ode
 from scipy.interpolate import interp1d
 from txt import *
 import multiprocessing as mp
+import matplotlib
+matplotlib.rcParams['mathtext.fontset'] = 'stix'
+matplotlib.rcParams['font.family'] = 'STIXGeneral'
 
 foralpha = lambda x: ((x-np.sin(x))/(2.*np.pi))**(2./3)
 
@@ -58,16 +61,15 @@ def uthf(mb, mdm, Tb, Tdm):
 def drag(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
 	r = v/uth
-	A = (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/v**2 * (r>1e-5) + (2/np.pi)**0.5*r/(3*uth**2) * (r<=1e-5)
-	return rho*sigma*1e20/(mb+mdm) * A
+	return rho*sigma*1e20/(mb+mdm)*(erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/v**2
 
-def Q_IDMB(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20, gamma = 5/3):
+def Q_IDMB(rho, v, Tb, Tdm, mb = PROTON, mdm = 0.3*GeV_to_mass, sigma = 8e-20):
 	uth = (Tb*BOL/mb+Tdm*BOL/mdm)**0.5
 	r = v/uth
 	c = (Tdm-Tb)/uth**3 * ((2/np.pi)**0.5*np.exp(-r**2/2))
-	d = mdm/v * (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/BOL * (r>1e-5) + mdm/BOL * (2/np.pi)**0.5*r**2/(3*uth) * (r<=1e-5)
+	d = mdm/v * (erf(r/2**0.5)-(2/np.pi)**0.5*np.exp(-r**2/2)*r)/BOL
 	out = mb*rho*sigma*1e20/(mdm+mb)**2 * (c + d)
-	return out*(gamma-1)
+	return out/1.5
 	
 def dv_z(z, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76):
 	a = 1/(1+z)
@@ -140,7 +142,6 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = 10, xa0 = 1.0, nco
 		out = []
 		for i in range(pr0, pr1):
 			sol = T21_pred(v0, lm[i], ls[j]*1e-20, xa0)
-			print(lm[i], ls[j]*1e-20)
 			out.append(sol)
 		output.put((pr0, np.array(out).T))
 	for i in range(nbin):
@@ -160,33 +161,27 @@ def parasp(v0 = 30., m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = 10, xa0 = 1.0, nco
 		#	lTb[i,j] = sol[1]
 	return X, Y*1e-20, lT, lTb
 
-def main(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76, a1=1./119, a2=1./115, T0=2.726, nb = 100000, Tmin = 1e-4, vmin = 1e-10):
+def main(z0 = 1000., z1 = 9.0, v0 = 30., Mdm = 0.3, sigma = 8e-20, Om = 0.315, Ob = 0.048, OR = 9.54e-5, h = 0.6774, X = 0.76, a1=1./119, a2=1./115, T0=2.726, nb = 100000, Tmin = 0.1, vmin = 1e-10):
 	xh = 4*X/(1+3*X)
 	def func(y, a):
-		uth = (y[1]*BOL/PROTON+y[0]*BOL/(Mdm*GeV_to_mass))**0.5
-		if y[2]<=vmin*uth:
-			v = vmin*uth
-			dv = 0.0#-y[2]/a
+		if y[1]<Tmin: #y[1]<=y[0]:
+			dTdm = -2*y[0]/a
+			dTb = -2*y[1]/a
+		else:
+			rhob = Ob/Om * rhom(a, Om, h)
+			QH = Q_IDMB(rhob, y[2], y[0], y[1], Mdm*GeV_to_mass, PROTON, sigma)*xh
+			QHe = Q_IDMB(rhob, y[2], y[0], y[1], Mdm*GeV_to_mass, 4*PROTON, sigma)*(1-xh)
+			dTdm = -2*y[0]/a + (QH+QHe)/ (a*H(a, Om, h, OR))
+			rhodm = (Om-Ob)/Om * rhom(a, Om, h)
+			QH = Q_IDMB(rhodm, y[2], y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)*xh
+			QHe = Q_IDMB(rhodm, y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)*(1-xh)
+			dTb = -2*y[1]/a + (GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1]) + (QH+QHe))/ (a*H(a, Om, h, OR))
+		if y[2]<vmin:
+			dv = -y[2]/a
 		else:
 			DH = drag(rhom(a, Om, h), y[2], y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)
 			DHe = drag(rhom(a, Om, h), y[2], y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)	
-			v = y[2]
-			dv = -v/a - (xh*DH + (1-xh)*DHe)/(a*H(a, Om, h, OR))
-		if y[1]<=Tmin: #y[1]<=y[0]:
-			dTdm = 0.0#-2*y[0]/a
-			dTb = 0.0#-2*y[1]/a
-		elif y[1]<=y[0] and y[2]<=vmin*uth:
-			dTdm = -2*y[0]/a
-			dTb = -2*y[1]/a + GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1])/ (a*H(a, Om, h, OR))
-		else:
-			rhob = Ob/Om * rhom(a, Om, h)
-			QH = Q_IDMB(rhob, v, y[0], y[1], Mdm*GeV_to_mass, PROTON, sigma)*xh
-			QHe = Q_IDMB(rhob, v, y[0], y[1], Mdm*GeV_to_mass, 4*PROTON, sigma)*(1-xh)
-			dTdm = -2*y[0]/a + (QH+QHe)/ (a*H(a, Om, h, OR))
-			rhodm = (Om-Ob)/Om * rhom(a, Om, h)
-			QH = Q_IDMB(rhodm, v, y[1], y[0], PROTON, Mdm*GeV_to_mass, sigma)*xh
-			QHe = Q_IDMB(rhodm, v, y[1], y[0], 4*PROTON, Mdm*GeV_to_mass, sigma)*(1-xh)
-			dTb = -2*y[1]/a + (GammaC(1/a-1, Om, Ob, OR, h, X, a1, a2, T0)*(T0/a-y[1]) + (QH+QHe))/ (a*H(a, Om, h, OR))
+			dv = -y[2]/a - (xh*DH + (1-xh)*DHe)/(a*H(a, Om, h, OR))
 		return [dTdm, dTb, dv]
 	ai = 1/(1+z0)
 	af = 1/(1+z1)
@@ -310,9 +305,9 @@ def stack(lv, lZ):
 	
 
 if __name__=="__main__":
-	mode = 0
+	mode = 1
 	v0 = 0.1
-	nbin = 24
+	nbin = 48
 	ncore = 4
 	"""
 	lf = ['1e-10', '10.0', '21.0', '30.0', '40.0', '50.0', '60.0', '70.0', '80.0', '90.0']
@@ -361,8 +356,9 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig('T21Ratio.pdf')
 	"""
+	"""
 	if mode==0:
-		X, Y, Z, Tb = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 4, nbin = nbin, xa0 = xa0, ncore = ncore)
+		X, Y, Z, Tb = parasp(v0, m1 = -4, m2 = 2, s1 = -1, s2 = 2, nbin = nbin, xa0 = xa0, ncore = ncore)
 		totxt('X_'+str(v0)+'.txt',X,0,0,0)
 		totxt('Y_'+str(v0)+'.txt',Y,0,0,0)
 		totxt('Z_'+str(v0)+'.txt',Z,0,0,0)
@@ -399,8 +395,8 @@ if __name__=="__main__":
 	plt.tight_layout()
 	plt.savefig('T21map_vbDM'+str(v0)+'.pdf')
 	#plt.show()
-
-	#"""
+	"""
+	"""
 	mdm = 0.3
 	sig = 8e-20 #-19
 	if mode==0:
@@ -427,35 +423,35 @@ if __name__=="__main__":
 	plt.savefig('T21_v_mdm'+str(mdm)+'GeV_sigma_1'+str(sig)+'_.pdf')
 	T21 = np.trapz(vdis(lv)*lT21, lv)/np.trapz(vdis(lv), lv)
 	print('Averaged T21 with streaming motions : {} mK'.format(T21))
-	#"""
-	
 	"""
+	
 	lls = ['-', '--', '-.', ':']
-	llc = ['b', 'g', 'orange', 'r']#['g', 'yellow', 'orange', 'r']
+	llc = ['k', 'b', 'g', 'r']#['b', 'g', 'orange', 'r']
 	lv0 = [1e-10, 30, 60, 90]
-	llb = [r'$v_{\mathrm{bDM},0}=0$', r'$v_{\mathrm{bDM},0}=1\sigma$', r'$v_{\mathrm{bDM},0}=2\sigma$', r'$v_{\mathrm{bDM},0}=3\sigma$']
-	mdm = 0.3 #3e-1
+	llb = [r'$v_{b\chi,0}=0$', r'$v_{b\chi,0}=1\sigma_{\mathrm{rms}}$', r'$v_{b\chi,0}=2\sigma_{\mathrm{rms}}$', r'$v_{b\chi,0}=3\sigma_{\mathrm{rms}}$']
+	mdm = 0.3# 0.003 #3e-1
 	sig = -19
 	zmax = 1000
 	z0, z1 = 1100, 9
-	fig = plt.figure(figsize=(12,6))
+	fig = plt.figure(figsize=(12,5))
 	ax1 = plt.subplot(121)
 	ax2 = plt.subplot(122)
 	down1, up1 = 1e-1, 1e3
 	down2, up2 = 1e-2, 1e2
-	ax1.text(z1+2, up1*0.6, r'$m_{\mathrm{DM}}c^{2}='+str(mdm)+r'\ \mathrm{GeV}$, $\sigma_{1}=10^{'+str(sig)+r'}\ \mathrm{cm^{2}}$')
+	ax1.text(z1+2, up1*0.4, r'$m_{\mathrm{\chi}}c^{2}='+str(mdm)+r'\ \mathrm{GeV}$, $\sigma_{1}=10^{'+str(sig)+r'}\ \mathrm{cm^{2}}$')
 	#ax2.text(z1+15, up2*0.75, r'$m_{\mathrm{DM}}c^{2}='+str(mdm)+r'\ \mathrm{GeV}$, $\sigma_{1}=10^{'+str(sig)+r'}\ \mathrm{cm^{2}}$')
 	for v, c, l, ls in zip(lv0, llc, llb, lls):
-		d = main(z0, z1, v0 = v, Mdm=mdm, sigma=10**sig, Tmin = 1e-5)
-		ax1.plot(d['lz']+1, d['Tb'], color=c, label=r'$T_{\mathrm{b}}$, '+l)
-		ax1.plot(d['lz']+1, d['Tdm'], color=c, label=r'$T_{\mathrm{DM}}$, '+l, ls='--')
-		if c is not 'b':
+		if c is not 'k':
+			d = main(z0, z1, v0 = v, Mdm=mdm, sigma=10**sig, Tmin = 1e-5)
+			ax1.plot(d['lz']+1, d['Tb'], color=c, label=r'$T_{b}$, '+l)
+			ax1.plot(d['lz']+1, d['Tdm'], color=c, label=r'$T_{\chi}$, '+l, ls='--')
+		if c is not 'k':
 			ax2.plot(d['lz']+1, d['v']/1e5, label=l, color=c)
-			ax2.plot(d['lz']+1, vbdm_z(d['lz'], v)/1e5, ls = '--', color=c, label=l+', CDM')
-			ax2.plot(d['lz']+1, d['u']/1e6, ls='-.', color=c, label=r'$0.1u_{\mathrm{th}}$, '+l)
-	ax1.plot(d['lz']+1, T_b(d['lz']), 'k-.', label=r'$T_{\mathrm{b}}$, CDM')
+			ax2.plot(d['lz']+1, d['u']/1e6, ls='--', color=c, label=r'$0.1u_{\mathrm{th}}$, '+l)
+			ax2.plot(d['lz']+1, vbdm_z(d['lz'], v)/1e5, ls = '-.', color=c, label=l+', CDM')
+	ax1.plot(d['lz']+1, T_b(d['lz']), 'k-.', label=r'$T_{b}$, CDM')
 	#ax1.plot(d['lz']+1, T_dm(d['lz'], mdm), 'k:', label=r'$T_{\mathrm{DM}}$, CDM')
-	ax1.fill_between([16, 19],[up1, up1],[down1, down1],label='EDGES',facecolor='gray')
+	ax1.fill_between([15, 20],[up1, up1],[down1, down1],label='EDGES',facecolor='gray')
 	ax1.set_xlabel(r'$1+z$')
 	ax1.set_ylabel(r'$T\ [\mathrm{K}]$')
 	ax1.legend(loc=4)
@@ -465,17 +461,14 @@ if __name__=="__main__":
 	ax1.set_ylim(down1, up1)
 	#ax2.plot(d['lz'],np.zeros(len(d['lz'])), 'k', lw=0.5)
 	ax2.set_xlabel(r'$1+z$')
-	ax2.set_ylabel(r'$v_{\mathrm{bDM}}\ [\mathrm{km\ s^{-1}}]$')
+	ax2.set_ylabel(r'$v_{b\chi}\ [\mathrm{km\ s^{-1}}]$')
 	ax2.set_xscale('log')
 	ax2.set_yscale('log')
 	ax2.legend(loc=4)
 	ax2.set_xlim(z1+1, zmax)
 	ax2.set_ylim(down2, up2)
 	plt.tight_layout()
-	plt.savefig('T_z_mdm'+str(mdm)+'GeV_logsigma1'+str(sig)+'.pdf')
-	"""
-
-
+	plt.savefig('T_z.pdf')#_mdm'+str(mdm)+'GeV_logsigma1'+str(sig)+'_.pdf')
 
 	"""
 	m_dm = 0.3
